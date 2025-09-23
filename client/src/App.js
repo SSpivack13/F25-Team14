@@ -1,31 +1,339 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 function Banner() {
   const navigate = useNavigate();
 
   return (
     <div className="banner">
-      <h1>About</h1>
-      <button onClick={() => navigate('/profile')}>Profile</button>
+      <h1>Talladega Nights</h1>
+      <button onClick={() => navigate('/login')}>Manager Profile</button>
     </div>
   );
 }
 
 function HomePage() {
   return (
-    <div>
-      <Banner />
-      {/* Rest of your home page content */}
+    <div className="home-content">
+      <h2>Welcome to the App</h2>
+      <p>This is the main page</p>
     </div>
   );
 }
 
-function ProfilePage() {
+function LoginPage() {
+  const [loginForm, setLoginForm] = useState({
+    username: '',
+    password: ''
+  });
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const navigate = useNavigate();
+
+  const handleInputChange = (field, value) => {
+    setLoginForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleLogin = () => {
+    // really simple and bare bone login feature
+    if (!loginForm.username.trim()) {
+      setMessage('Username is required');
+      setMessageType('error');
+      return;
+    }
+
+    if (!loginForm.password.trim()) {
+      setMessage('Password is required');
+      setMessageType('error');
+      return;
+    }
+
+    // Simple authentication, when we get the app going, this will change
+    if (loginForm.username === 'manager' && loginForm.password === 'password') {
+      setMessage('Login successful!');
+      setMessageType('success');
+      
+      // Store login state, will need db then will change
+      localStorage.setItem('isLoggedIn', 'true');
+      
+      
+      setTimeout(() => {
+        navigate('/profile');
+      }, 1000);
+    } else {
+      setMessage('Invalid username or password');
+      setMessageType('error');
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleLogin();
+    }
+  };
+
   return (
     <div>
-      <h1>Profile Page</h1>
-      {/* Profile page content */}
+      <Banner />
+      <div className="profile-container">
+        <div className="profile-header">
+          <h1>Manager Login</h1>
+        </div>
+
+        {message && (
+          <div className={`message ${messageType}`}>
+            {message}
+          </div>
+        )}
+
+        <div className="profile-edit">
+          <div className="form-group">
+            <label>Username</label>
+            <input
+              type="text"
+              value={loginForm.username}
+              onChange={(e) => handleInputChange('username', e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter username"
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              value={loginForm.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter password"
+            />
+          </div>
+
+          <div className="form-actions">
+            <button className="save-btn" onClick={handleLogin}>
+              Login
+            </button>
+          </div>
+
+          <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '6px', fontSize: '0.9rem', color: '#666' }}>
+            <strong>Demo Credentials:</strong><br />
+            Username: manager<br />
+            Password: password
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function ProfilePage() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const navigate = useNavigate();
+  
+  const [profile, setProfile] = useState({
+    username: 'manager123',
+    password: 'password123',
+    email: 'manager@talladeganights.com'
+  });
+  
+  const [editForm, setEditForm] = useState({
+    username: '',
+    password: '',
+    confirmPassword: '',
+    email: ''
+  });
+
+  // check if user is actually logged in
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  
+  if (!isLoggedIn) {
+    navigate('/login');
+    return null;
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    navigate('/');
+  };
+
+  const handleEdit = () => {
+    setEditForm({
+      username: profile.username,
+      password: '',
+      confirmPassword: '',
+      email: profile.email
+    });
+    setIsEditing(true);
+    setMessage('');
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditForm({
+      username: '',
+      password: '',
+      confirmPassword: '',
+      email: ''
+    });
+    setMessage('');
+  };
+
+  const handleSave = () => {
+    // Validation
+    if (!editForm.username.trim()) {
+      setMessage('Username is required');
+      setMessageType('error');
+      return;
+    }
+
+    if (editForm.password && editForm.password !== editForm.confirmPassword) {
+      setMessage('Passwords do not match');
+      setMessageType('error');
+      return;
+    }
+
+    if (editForm.email && !editForm.email.includes('@')) {
+      setMessage('Please enter a valid email address');
+      setMessageType('error');
+      return;
+    }
+
+    // Update profile
+    const updatedProfile = {
+      username: editForm.username,
+      password: editForm.password || profile.password,
+      email: editForm.email
+    };
+
+    setProfile(updatedProfile);
+    setIsEditing(false);
+    setMessage('Profile updated successfully!');
+    setMessageType('success');
+    
+    setTimeout(() => {
+      setMessage('');
+    }, 3000);
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <div>
+      <div className="banner">
+        <h1>React App</h1>
+        <button onClick={handleLogout}>Logout</button>
+      </div>
+      <div className="profile-container">
+        <div className="profile-header">
+          <h1>Manager Profile</h1>
+          {!isEditing && (
+            <button className="edit-btn" onClick={handleEdit}>
+              Edit Profile
+            </button>
+          )}
+        </div>
+
+        {message && (
+          <div className={`message ${messageType}`}>
+            {message}
+          </div>
+        )}
+
+        {!isEditing ? (
+          <div className="profile-view">
+            <div className="profile-field">
+              <label>Username</label>
+              <div className="field-value">{profile.username}</div>
+            </div>
+
+            <div className="profile-field">
+              <label>Password</label>
+              <div className="password-field">
+                <div className="field-value">
+                  {showPassword ? profile.password : '••••••••••'}
+                </div>
+                <button 
+                  className="toggle-password-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <div className="profile-field">
+              <label>Email</label>
+              <div className="field-value">{profile.email || 'Not provided'}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="profile-edit">
+            <div className="form-group">
+              <label>Username</label>
+              <input
+                type="text"
+                value={editForm.username}
+                onChange={(e) => handleInputChange('username', e.target.value)}
+                placeholder="Enter username"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="password-section">
+              <h3>Change Password</h3>
+              <div className="form-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  value={editForm.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="Enter new password (leave blank to keep current)"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  value={editForm.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button className="save-btn" onClick={handleSave}>
+                Save Changes
+              </button>
+              <button className="cancel-btn" onClick={handleCancel}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -35,7 +343,13 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={
+            <div>
+              <Banner />
+              <HomePage />
+            </div>
+          } />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </div>
