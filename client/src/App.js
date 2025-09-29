@@ -7,8 +7,8 @@ function Banner() {
 
   return (
     <div className="banner">
-      <h1>Talladega Nights</h1>
-      <button onClick={() => navigate('/login')}>Manager Profile</button>
+          <h1>Talladega Nights</h1>
+          <button onClick={() => navigate('/login')}>Manager Profile</button>
     </div>
   );
 }
@@ -232,8 +232,11 @@ function ProfilePage() {
   return (
     <div>
       <div className="banner">
-        <h1>React App</h1>
-        <button onClick={handleLogout}>Logout</button>
+              <h1>React App</h1>
+              <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={handleLogout}>Logout</button>
+                  <button onClick={() => navigate('/points')}>Points</button>
+                </div>
       </div>
       <div className="profile-container">
         <div className="profile-header">
@@ -338,6 +341,31 @@ function ProfilePage() {
   );
 }
 
+function PointsPage() {
+    const points = 123321;
+    const navigate = useNavigate();
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+    if (!isLoggedIn) {
+        navigate('/login');
+        return null;
+    }
+
+    const handleLogout = () => {
+        localStorage.removeItem('isLoggedIn');
+        navigate('/');
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}} >
+            <h1>Your Points</h1>
+            <h2>You currently have <strong>{points}</strong> points.</h2>
+            <button onClick={() => navigate('/profile')}>Profile</button>
+            <button onClick={handleLogout}>Logout</button>
+        </div>
+    )
+}
+
 function App() {
   return (
     <Router>
@@ -351,6 +379,7 @@ function App() {
           } />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+           <Route path="/points" element={<PointsPage />} />
         </Routes>
       </div>
     </Router>
