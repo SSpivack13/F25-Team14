@@ -1,6 +1,7 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import './Template.css';
 
 function Banner() {
   const navigate = useNavigate();
@@ -15,9 +16,15 @@ function Banner() {
 
 function HomePage() {
   return (
-    <div className="home-content">
-      <h2>Welcome to the App</h2>
-      <p>This is the main page</p>
+    <div className="template-content">
+      <h2>Team 14 Members:</h2>
+      <p>
+        Quinn Fackrell<br />
+        Andrew Hwang<br />
+        George Jubenvill<br />
+        Steven Spivack<br />
+        Haagen Williams
+      </p>
     </div>
   );
 }
