@@ -17,14 +17,16 @@ function Banner() {
 function HomePage() {
   return (
     <div className="template-content">
-      <h2>Team 14 Members:</h2>
-      <p>
-        Quinn Fackrell<br />
-        Andrew Hwang<br />
-        George Jubenvill<br />
-        Steven Spivack<br />
-        Haagen Williams
-      </p>
+      <div className="template-card">
+        <h2>Team 14 Members:</h2>
+        <p>
+          Quinn Fackrell<br />
+          Andrew Hwang<br />
+          George Jubenvill<br />
+          Steven Spivack<br />
+          Haagen Williams
+        </p>
+      </div>
     </div>
   );
 }
