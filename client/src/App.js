@@ -1,6 +1,7 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { appInfo } from './appInfo';
 import './Template.css';
 
 function Banner() {
@@ -18,13 +19,23 @@ function HomePage() {
   return (
     <div className="template-content">
       <div className="template-card">
+        <h2>{appInfo.projectName}</h2>
+      </div>
+      <div className="template-card">
+        <h2>Current Sprint: {appInfo.currentSprint}</h2>
+        <p>
+          Project Version: {appInfo.version}<br />
+        </p>
+      </div>
+      <div className="template-card">
         <h2>Team 14 Members:</h2>
         <p>
-          Quinn Fackrell<br />
-          Andrew Hwang<br />
-          George Jubenvill<br />
-          Steven Spivack<br />
-          Haagen Williams
+          {appInfo.teamMembers.map((member, index) => (
+            <span key={index}>
+              {member}
+              {index < appInfo.teamMembers.length - 1 && <br />}
+            </span>
+          ))}
         </p>
       </div>
     </div>
