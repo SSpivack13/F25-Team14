@@ -427,30 +427,60 @@ function AdminPage() {
 function AdminAddUser() {
     const navigate = useNavigate();
 
-
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [userType, setUserType] = useState("driver");
-    const [submittedData, setSubmittedData] = useState(null);
+    const [message, setMessage] = useState('');
+    const [messageType, setMessageType] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setMessage('');
+        setMessageType('');
 
-        // Just save locally for proof-of-concept display
-        setSubmittedData({ username, password, userType });
+        try {
+            const response = await axios.post('http://localhost:3001/api/users/add', {
+                username,
+                password,
+                userType
+            });
 
-        // Clear fields if you want
-        setUsername("");
-        setPassword("");
-        setUserType("driver");
-    }
+            if (response.data.status === 'success') {
+                setMessage('User created successfully!');
+                setMessageType('success');
+
+                // Clear fields after successful creation
+                setUsername("");
+                setPassword("");
+                setUserType("driver");
+            }
+        } catch (error) {
+            if (error.response) {
+                setMessage(error.response.data.message || 'An error occurred while creating the user.');
+            } else if (error.request) {
+                setMessage('Could not connect to the server. Please try again later.');
+            } else {
+                setMessage('An unexpected error occurred.');
+            }
+            setMessageType('error');
+        }
+    };
 
     return (
         <div style={{ padding: "20px" }}>
+            <button onClick={() => navigate('/admin')}>Back to Admin</button>
             <form
                 onSubmit={handleSubmit}
-                style={{ display: "flex", flexDirection: "column", gap: "10px", width: "250px" }}
+                style={{ display: "flex", flexDirection: "column", gap: "10px", width: "250px", marginTop: '1rem' }}
             >
+                <h2>Create New User</h2>
+
+                {message && (
+                    <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
+                        {message}
+                    </div>
+                )}
+
                 <input
                     type="text"
                     placeholder="Username"
@@ -476,15 +506,6 @@ function AdminAddUser() {
 
                 <button type="submit">Create User</button>
             </form>
-
-            {submittedData && (
-                <div style={{ marginTop: "20px" }}>
-                    <h3>Preview:</h3>
-                    <p><strong>Username:</strong> {submittedData.username}</p>
-                    <p><strong>Password:</strong> {submittedData.password}</p>
-                    <p><strong>User Type:</strong> {submittedData.userType}</p>
-                </div>
-            )}
         </div>
     )
 }

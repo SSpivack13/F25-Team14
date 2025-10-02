@@ -60,6 +60,45 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+app.post('/api/users/add', async (req, res) => {
+  const { username, password, userType } = req.body;
+
+  if (!username || !password || !userType) {
+    return res.status(400).json({ status: 'error', message: 'Username, password, and user type are required' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Check if user already exists
+    const [existingUsers] = await connection.execute(
+      'SELECT USERNAME FROM Users WHERE USERNAME = ?',
+      [username]
+    );
+
+    if (existingUsers.length > 0) {
+      connection.release();
+      return res.status(409).json({ status: 'error', message: 'Username already exists' });
+    }
+
+    // Not permanent: Need to hash passwords before storing them in the database
+    const [result] = await connection.execute(
+      'INSERT INTO Users (USERNAME, PASSWORD, USER_TYPE) VALUES (?, ?, ?)',
+      [username, password, userType]
+    );
+    connection.release();
+
+    if (result.affectedRows > 0) {
+      res.status(201).json({ status: 'success', message: 'User created successfully' });
+    } else {
+      throw new Error('Failed to create user');
+    }
+  } catch (err) {
+    console.error('Error creating user:', err);
+    res.status(500).json({ status: 'error', message: 'An internal server error occurred' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
