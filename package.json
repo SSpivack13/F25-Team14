@@ -1,6 +1,7 @@
 {
   "name": "f25-team14",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "client/src/index.js",
   "scripts": {
