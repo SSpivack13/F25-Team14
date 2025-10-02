@@ -10,7 +10,10 @@ function Banner() {
   return (
     <div className="banner">
           <h1>Talladega Nights</h1>
-          <button onClick={() => navigate('/login')}>Manager Profile</button>
+          <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => navigate('/login')}>Manager Profile</button>
+              <button onClick={() => navigate('/admin')}>Admin Profile</button>
+          </div>
     </div>
   );
 }
@@ -386,6 +389,91 @@ function PointsPage() {
     )
 }
 
+function AdminPage() {
+    const navigate = useNavigate();
+    return (
+        <div>
+            <div className="banner">
+                <h1>React App</h1>
+                <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => navigate('/points')}>Points</button>
+                </div>
+            </div>
+            <div className="profile-container">
+                <div className="profile-header">
+                    <h1>Admin Profile</h1>
+                </div>
+            </div>
+            <button onClick={() => navigate('/admin/adduser')}>Add User</button>
+        </div>
+    )
+}
+
+function AdminAddUser() {
+    const navigate = useNavigate();
+
+
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [userType, setUserType] = useState("driver");
+    const [submittedData, setSubmittedData] = useState(null);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        // Just save locally for proof-of-concept display
+        setSubmittedData({ username, password, userType });
+
+        // Clear fields if you want
+        setUsername("");
+        setPassword("");
+        setUserType("driver");
+    }
+
+    return (
+        <div style={{ padding: "20px" }}>
+            <form
+                onSubmit={handleSubmit}
+                style={{ display: "flex", flexDirection: "column", gap: "10px", width: "250px" }}
+            >
+                <input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                />
+
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                />
+
+                <select value={userType} onChange={(e) => setUserType(e.target.value)}>
+                    <option value="driver">Driver</option>
+                    <option value="sponsor">Sponsor</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                </select>
+
+                <button type="submit">Create User</button>
+            </form>
+
+            {submittedData && (
+                <div style={{ marginTop: "20px" }}>
+                    <h3>Preview:</h3>
+                    <p><strong>Username:</strong> {submittedData.username}</p>
+                    <p><strong>Password:</strong> {submittedData.password}</p>
+                    <p><strong>User Type:</strong> {submittedData.userType}</p>
+                </div>
+            )}
+        </div>
+    )
+}
+
 function App() {
   return (
     <Router>
@@ -399,7 +487,9 @@ function App() {
           } />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-           <Route path="/points" element={<PointsPage />} />
+          <Route path="/points" element={<PointsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/adduser" element={<AdminAddUser />} />
         </Routes>
       </div>
     </Router>
