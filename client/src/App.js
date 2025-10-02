@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { useState } from 'react';
 import { appInfo } from './appInfo';
 import './Template.css';
-
+import axios from 'axios';
 function Banner() {
   const navigate = useNavigate();
 
@@ -61,7 +61,7 @@ function LoginPage() {
     }));
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     // really simple and bare bone login feature
     if (!loginForm.username.trim()) {
       setMessage('Username is required');
@@ -75,20 +75,35 @@ function LoginPage() {
       return;
     }
 
-    // Simple authentication, when we get the app going, this will change
-    if (loginForm.username === 'manager' && loginForm.password === 'password') {
-      setMessage('Login successful!');
-      setMessageType('success');
-      
-      // Store login state, will need db then will change
-      localStorage.setItem('isLoggedIn', 'true');
-      
-      
-      setTimeout(() => {
-        navigate('/profile');
-      }, 1000);
-    } else {
-      setMessage('Invalid username or password');
+    try {
+      const response = await axios.post('http://localhost:3001/api/login', {
+        username: loginForm.username,
+        password: loginForm.password
+      });
+
+      if (response.data.status === 'success') {
+        setMessage('Login successful!');
+        setMessageType('success');
+        
+        // Store login state and user data
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        setTimeout(() => {
+          navigate('/profile');
+        }, 1000);
+      }
+    } catch (error) {
+      if (error.response) {
+        // The server responded with an error (e.g., 401, 400, 500)
+        setMessage(error.response.data.message || 'An error occurred during login.');
+      } else if (error.request) {
+        // The request was made but no response was received
+        setMessage('Could not connect to the server. Please try again later.');
+      } else {
+        // Something else happened while setting up the request
+        setMessage('An unexpected error occurred.');
+      }
       setMessageType('error');
     }
   };
