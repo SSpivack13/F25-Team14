@@ -1,6 +1,6 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { appInfo } from './appInfo';
 import './Template.css';
 import axios from 'axios';
@@ -11,6 +11,7 @@ function Banner() {
     <div className="banner">
           <h1>Talladega Nights</h1>
           <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => navigate('/')}>Home</button>
               <button onClick={() => navigate('/login')}>Manager Profile</button>
               <button onClick={() => navigate('/admin')}>Admin Profile</button>
           </div>
@@ -19,17 +20,45 @@ function Banner() {
 }
 
 function HomePage() {
+  const [aboutInfo, setAboutInfo] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchAboutInfo = async () => {
+      try {
+        const response = await axios.get('http://localhost:3001/api/about');
+        if (response.data.status === 'success') {
+          setAboutInfo(response.data.data);
+        } else {
+          setError(response.data.message || 'Could not fetch project information.');
+        }
+      } catch (err) {
+        setError('Failed to connect to the server. Please try again later.');
+        console.error('Error fetching about info:', err);
+      }
+    };
+
+    fetchAboutInfo();
+  }, []);
+
   return (
     <div className="template-content">
-      <div className="template-card">
-        <h2>{appInfo.projectName}</h2>
-      </div>
-      <div className="template-card">
-        <h2>Current Sprint: {appInfo.currentSprint}</h2>
-        <p>
-          Project Version: {appInfo.version}<br />
-        </p>
-      </div>
+      {error && <div className="template-card"><p className="template-alert template-alert-error">{error}</p></div>}
+      {!aboutInfo && !error && <div className="template-card"><p>Loading project information...</p></div>}
+      
+      {aboutInfo && (
+        <div className="template-card">
+          <h2>{aboutInfo.PROD_NAME}</h2>
+          <p>{aboutInfo.PROD_DESC}</p>
+          <br />
+          <p>
+            <strong>Version:</strong> {aboutInfo.SPRINT} <br />
+            <strong>Release Date:</strong> {new Date(aboutInfo.RELEASE_DATE).toLocaleDateString()} <br />
+            <strong>Team:</strong> #{aboutInfo.TEAM}
+          </p>
+        </div>
+      )}
+
       <div className="template-card">
         <h2>Team 14 Members:</h2>
         <p>
