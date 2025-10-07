@@ -323,14 +323,16 @@ function ProfilePage() {
   const [profile, setProfile] = useState({
     username: 'manager123',
     password: 'password123',
-    email: 'manager@talladeganights.com'
+    email: 'manager@talladeganights.com',
+    emailNotifications: false
   });
   
   const [editForm, setEditForm] = useState({
     username: '',
     password: '',
     confirmPassword: '',
-    email: ''
+    email: '',
+    emailNotifications: false
   });
 
   // check if user is actually logged in
@@ -351,7 +353,8 @@ function ProfilePage() {
       username: profile.username,
       password: '',
       confirmPassword: '',
-      email: profile.email
+      email: profile.email,
+      emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
     setMessage('');
@@ -363,7 +366,8 @@ function ProfilePage() {
       username: '',
       password: '',
       confirmPassword: '',
-      email: ''
+      email: '',
+      emailNotifications: false
     });
     setMessage('');
   };
@@ -392,7 +396,8 @@ function ProfilePage() {
     const updatedProfile = {
       username: editForm.username,
       password: editForm.password || profile.password,
-      email: editForm.email
+      email: editForm.email,
+      emailNotifications: editForm.emailNotifications
     };
 
     setProfile(updatedProfile);
@@ -463,6 +468,11 @@ function ProfilePage() {
               <label>Email</label>
               <div className="field-value">{profile.email || 'Not provided'}</div>
             </div>
+
+            <div className="profile-field">
+              <label>Email Notifications</label>
+              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+            </div>
           </div>
         ) : (
           <div className="profile-edit">
@@ -484,6 +494,17 @@ function ProfilePage() {
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
               />
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editForm.emailNotifications}
+                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                />
+                Send notifications to email
+              </label>
             </div>
 
             <div className="password-section">
