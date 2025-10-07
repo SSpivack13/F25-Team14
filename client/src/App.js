@@ -817,7 +817,8 @@ function AdminProfilePage() {
     username: 'admin123',
     password: 'password123',
     email: 'admin@talladeganights.com',
-    phone: ''
+    phone: '',
+    emailNotifications: false
   });
 
   const [editForm, setEditForm] = useState({
@@ -825,7 +826,8 @@ function AdminProfilePage() {
     password: '',
     confirmPassword: '',
     email: '',
-    phone: ''
+    phone: '',
+    emailNotifications: false
   });
 
   // check if user is actually logged in
@@ -845,7 +847,8 @@ function AdminProfilePage() {
       password: '',
       confirmPassword: '',
       email: profile.email,
-      phone: profile.phone || ''
+      phone: profile.phone || '',
+      emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
     setMessage('');
@@ -858,7 +861,8 @@ function AdminProfilePage() {
       password: '',
       confirmPassword: '',
       email: '',
-      phone: ''
+      phone: '',
+      emailNotifications: false
     });
     setMessage('');
   };
@@ -895,7 +899,8 @@ function AdminProfilePage() {
       username: editForm.username,
       password: editForm.password || profile.password,
       email: editForm.email,
-      phone: editForm.phone
+      phone: editForm.phone,
+      emailNotifications: editForm.emailNotifications
     };
 
     setProfile(updatedProfile);
@@ -971,6 +976,11 @@ function AdminProfilePage() {
               <label>Phone</label>
               <div className="field-value">{profile.phone || 'Not provided'}</div>
             </div>
+
+            <div className="profile-field">
+              <label>Email Notifications</label>
+              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+            </div>
           </div>
         ) : (
           <div className="profile-edit">
@@ -1002,6 +1012,17 @@ function AdminProfilePage() {
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="Enter phone number"
               />
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editForm.emailNotifications}
+                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                />
+                Send notifications to email
+              </label>
             </div>
 
             <div className="password-section">
