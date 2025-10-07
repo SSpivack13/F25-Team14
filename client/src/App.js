@@ -22,6 +22,14 @@ function Banner() {
       navigate('/login', { state: { redirectTo: '/sponsor' } });
     }
   };
+  const goAdmin = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (isLoggedIn) {
+      navigate('/admin');
+    } else {
+      navigate('/login', { state: { redirectTo: '/admin' } });
+    }
+  };
 
   return (
     <div className="banner">
@@ -30,7 +38,7 @@ function Banner() {
               <button onClick={() => navigate('/')}>Home</button>
               <button onClick={goManager}>Manager Profile</button>
               <button onClick={goSponsor}>Sponsor Profile</button>
-              <button onClick={() => navigate('/admin')}>Admin Profile</button>
+              <button onClick={goAdmin}>Admin Profile</button>
           </div>
     </div>
   );
@@ -107,15 +115,19 @@ function LoginPage() {
     ? 'Manager Login'
     : intendedRoute === '/sponsor'
       ? 'Sponsor Login'
-      : 'Login';
+      : intendedRoute === '/admin'
+        ? 'Admin Login'
+        : 'Login';
   const expectedRole = intendedRoute === '/profile' ? 'manager'
     : intendedRoute === '/sponsor' ? 'sponsor'
+    : intendedRoute === '/admin'? 'admin'
     : undefined;
 
   // Client-side demo users for showcasing functionality
   const demoUsers = {
     manager: { password: 'password', USER_TYPE: 'manager' },
     sponsor: { password: 'password', USER_TYPE: 'sponsor' },
+    admin: { password: 'password', USER_TYPE: 'admin' },
   };
 
   const handleInputChange = (field, value) => {
@@ -131,6 +143,9 @@ function LoginPage() {
   };
   const useSponsorDemo = () => {
     setLoginForm({ username: 'sponsor', password: 'password' });
+  };
+  const useAdminDemo = () => {
+    setLoginForm({ username: 'admin', password: 'password' });
   };
 
   const handleLogin = async () => {
@@ -279,6 +294,16 @@ function LoginPage() {
                 Password: <code>password</code><br />
                 <button className="save-btn" style={{ marginTop: '0.5rem' }} onClick={useSponsorDemo}>
                   Use Sponsor Demo
+                </button>
+              </div>
+            )}
+            {(loginTitle === 'Login' || loginTitle === 'Admin Login') && (
+              <div>
+                <strong>Admin Demo:</strong><br />
+                Username: <code>admin</code><br />
+                Password: <code>password</code><br />
+                <button className="save-btn" style={{ marginTop: '0.5rem' }} onClick={useAdminDemo}>
+                  Use Admin Demo
                 </button>
               </div>
             )}
@@ -760,30 +785,280 @@ function PointsPage() {
     )
 }
 
-function AdminPage() {
-    const navigate = useNavigate();
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    return (
-        <div>
-            <div className="banner">
-                <h1>React App</h1>
-                <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => navigate('/points')}>Points</button>
-                </div>
-            </div>
-            <div className="profile-container">
-                <div className="profile-header">
-                    <h1>Admin Profile</h1>
-                    <div className="profile-field">
-                      <label>Username</label>
-                      <div className="field-value">{user?.USERNAME || 'Not logged in'}</div>
-                    </div>
-                </div>
-            </div>
-            <button onClick={() => navigate('/admin/adduser')}>Add User</button>
+function AdminProfilePage() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const navigate = useNavigate();
+
+  const [profile, setProfile] = useState({
+    username: 'admin123',
+    password: 'password123',
+    email: 'admin@talladeganights.com',
+    phone: ''
+  });
+
+  const [editForm, setEditForm] = useState({
+    username: '',
+    password: '',
+    confirmPassword: '',
+    email: '',
+    phone: ''
+  });
+
+  // check if user is actually logged in
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    navigate('/');
+  };
+
+  const handleEdit = () => {
+    setEditForm({
+      username: profile.username,
+      password: '',
+      confirmPassword: '',
+      email: profile.email,
+      phone: profile.phone || ''
+    });
+    setIsEditing(true);
+    setMessage('');
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditForm({
+      username: '',
+      password: '',
+      confirmPassword: '',
+      email: '',
+      phone: ''
+    });
+    setMessage('');
+  };
+
+  const handleSave = () => {
+    // Validation
+    if (!editForm.username.trim()) {
+      setMessage('Username is required');
+      setMessageType('error');
+      return;
+    }
+
+    if (editForm.password && editForm.password !== editForm.confirmPassword) {
+      setMessage('Passwords do not match');
+      setMessageType('error');
+      return;
+    }
+
+    if (editForm.email && !editForm.email.includes('@')) {
+      setMessage('Please enter a valid email address');
+      setMessageType('error');
+      return;
+    }
+
+    // Optional basic phone validation (digits and common symbols)
+    if (editForm.phone && !/^[-+()\s\d]{7,}$/.test(editForm.phone)) {
+      setMessage('Please enter a valid phone number');
+      setMessageType('error');
+      return;
+    }
+
+    // Update profile
+    const updatedProfile = {
+      username: editForm.username,
+      password: editForm.password || profile.password,
+      email: editForm.email,
+      phone: editForm.phone
+    };
+
+    setProfile(updatedProfile);
+    setIsEditing(false);
+    setMessage('Profile updated successfully!');
+    setMessageType('success');
+
+    setTimeout(() => {
+      setMessage('');
+    }, 3000);
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <div>
+      <div className="banner">
+        <h1>Talladega Nights</h1>
+        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => navigate('/points')}>Points</button>
         </div>
-    )
+      </div>
+      <div className="profile-container">
+        <div className="profile-header">
+          <h1>Admin Profile</h1>
+          {!isEditing && (
+            <button className="edit-btn" onClick={handleEdit}>
+              Edit Profile
+            </button>
+          )}
+        </div>
+
+        {message && (
+          <div className={`message ${messageType}`}>
+            {message}
+          </div>
+        )}
+
+        {!isEditing ? (
+          <div className="profile-view">
+            <div className="profile-field">
+              <label>Username</label>
+              <div className="field-value">{profile.username}</div>
+            </div>
+
+            <div className="profile-field">
+              <label>Password</label>
+              <div className="password-field">
+                <div className="field-value">
+                  {showPassword ? profile.password : '••••••••••'}
+                </div>
+                <button 
+                  className="toggle-password-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <div className="profile-field">
+              <label>Email</label>
+              <div className="field-value">{profile.email || 'Not provided'}</div>
+            </div>
+
+            <div className="profile-field">
+              <label>Phone</label>
+              <div className="field-value">{profile.phone || 'Not provided'}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="profile-edit">
+            <div className="form-group">
+              <label>Username</label>
+              <input
+                type="text"
+                value={editForm.username}
+                onChange={(e) => handleInputChange('username', e.target.value)}
+                placeholder="Enter username"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div className="password-section">
+              <h3>Change Password</h3>
+              <div className="form-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  value={editForm.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="Enter new password (leave blank to keep current)"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  value={editForm.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button className="save-btn" onClick={handleSave}>
+                Save Changes
+              </button>
+              <button className="cancel-btn" onClick={handleCancel}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <button onClick={() => navigate('/admin/adduser')}>Add User</button>
+    </div>
+  );
 }
+
+/*function AdminPage() {
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  if (!isLoggedIn) {
+      return <Navigate to="/login" replace />;
+  }
+
+  const handleLogout = () => {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('user');
+      navigate('/');
+  };
+
+  return (
+    <div>
+      <div className="banner">
+        <h1>React App</h1>
+        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => navigate('/points')}>Points</button>
+        </div>
+      </div>
+      <div className="profile-container">
+        <div className="profile-header">
+          <h1>Admin Profile</h1>
+          <div className="profile-field">
+            <label>Username</label>
+            <div className="field-value">{user?.USERNAME || 'Not logged in'}</div>
+          </div>
+        </div>
+      </div>
+      <button onClick={() => navigate('/admin/adduser')}>Add User</button>
+    </div>
+  )
+}
+*/
 
 function AdminAddUser() {
     const navigate = useNavigate();
@@ -886,7 +1161,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />
           <Route path="/points" element={<PointsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin" element={<AdminProfilePage />} />
           <Route path="/admin/adduser" element={<AdminAddUser />} />
         </Routes>
       </div>
