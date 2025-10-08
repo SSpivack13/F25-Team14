@@ -761,24 +761,61 @@ function SponsorProfilePage() {
 }
 
 function PointsPage() {
-    const points = 123321;
+    const [pointsData, setPointsData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
-    if (!isLoggedIn) {
-        navigate('/login');
-        return null;
-    }
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const user = JSON.parse(localStorage.getItem('user'));
+
+    useEffect(() => {
+        if (!isLoggedIn || !user) {
+            navigate('/login');
+            return;
+        }
+
+        const fetchPoints = async () => {
+            try {
+                const response = await fetch(`http://localhost:3001/api/users/${user.USER_ID}/points`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to fetch points');
+                }
+                const data = await response.json();
+                if (data.status === 'success') {
+                    setPointsData(data.data);
+                } else {
+                    throw new Error(data.message || 'An unknown error occurred');
+                }
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPoints();
+    }, [isLoggedIn, user, navigate]);
 
     const handleLogout = () => {
         localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('user');
         navigate('/');
     };
+
+    if (loading) {
+        return <div>Loading points...</div>;
+    }
+
+    if (error) {
+        return <div>Error: {error}</div>;
+    }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}} >
             <h1>Your Points</h1>
-            <h2>You currently have <strong>{points}</strong> points.</h2>
+            <h2>You currently have <strong>{pointsData?.points ?? 0}</strong> points.</h2>
             <button onClick={() => navigate('/profile')}>Profile</button>
             <button onClick={handleLogout}>Logout</button>
         </div>
@@ -1063,6 +1100,8 @@ function AdminProfilePage() {
 function AdminAddUser() {
     const navigate = useNavigate();
 
+    const [f_name, setf_name] = useState("");
+    const [l_name, setl_name] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [userType, setUserType] = useState("driver");
@@ -1078,7 +1117,9 @@ function AdminAddUser() {
             const response = await axios.post('http://localhost:3001/api/users/add', {
                 username,
                 password,
-                userType
+                userType,
+                f_name,
+                l_name
             });
 
             if (response.data.status === 'success') {
@@ -1086,6 +1127,8 @@ function AdminAddUser() {
                 setMessageType('success');
 
                 // Clear fields after successful creation
+                setf_name("");
+                setl_name("");
                 setUsername("");
                 setPassword("");
                 setUserType("driver");
@@ -1116,6 +1159,20 @@ function AdminAddUser() {
                         {message}
                     </div>
                 )}
+                <input
+                    type="text"
+                    placeholder="First Name"
+                    value={f_name}
+                    onChange={(e) => setf_name(e.target.value)}
+                    required
+                />
+                <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={l_name}
+                    onChange={(e) => setl_name(e.target.value)}
+                    required
+                />
 
                 <input
                     type="text"
