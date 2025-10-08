@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { appInfo } from './appInfo';
 import './Template.css';
 import axios from 'axios';
+import CatalogPage from './Catalog';
 function Banner() {
   const navigate = useNavigate();
   const goManager = () => {
@@ -30,12 +31,21 @@ function Banner() {
       navigate('/login', { state: { redirectTo: '/admin' } });
     }
   };
+  const goCatalog = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (isLoggedIn) {
+      navigate('/catalog');
+    } else {
+      navigate('/login', { state: { redirectTo: '/catalog' } });
+    }
+  };
 
   return (
     <div className="banner">
           <h1>Talladega Nights</h1>
           <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => navigate('/')}>Home</button>
+              <button onClick={goCatalog}>Catalog</button>
               <button onClick={goManager}>Manager Profile</button>
               <button onClick={goSponsor}>Sponsor Profile</button>
               <button onClick={goAdmin}>Admin Profile</button>
@@ -420,11 +430,13 @@ function ProfilePage() {
   return (
     <div>
       <div className="banner">
-              <h1>React App</h1>
-              <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={handleLogout}>Logout</button>
-                  <button onClick={() => navigate('/points')}>Points</button>
-                </div>
+        <h1>Talladega Nights</h1>
+        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => navigate('/')}>Home</button>
+          <button onClick={() => navigate('/catalog')}>Catalog</button>
+          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => navigate('/points')}>Points</button>
+        </div>
       </div>
       <div className="profile-container">
         <div className="profile-header">
@@ -657,11 +669,11 @@ function SponsorProfilePage() {
   return (
     <div>
       <div className="banner">
-              <h1>Talladega Nights</h1>
-              <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={handleLogout}>Logout</button>
-                  <button onClick={() => navigate('/points')}>Points</button>
-                </div>
+        <h1>Talladega Nights</h1>
+        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => navigate('/points')}>Points</button>
+        </div>
       </div>
       <div className="profile-container">
         <div className="profile-header">
@@ -1200,6 +1212,7 @@ function App() {
             </div>
           } />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />
           <Route path="/points" element={<PointsPage />} />
