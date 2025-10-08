@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { appInfo } from './appInfo';
 import './Template.css';
 import axios from 'axios';
+import CatalogPage from './Catalog';
 function Banner() {
   const navigate = useNavigate();
   const goManager = () => {
@@ -30,12 +31,21 @@ function Banner() {
       navigate('/login', { state: { redirectTo: '/admin' } });
     }
   };
+  const goCatalog = () => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (isLoggedIn) {
+      navigate('/catalog');
+    } else {
+      navigate('/login', { state: { redirectTo: '/catalog' } });
+    }
+  };
 
   return (
     <div className="banner">
           <h1>Talladega Nights</h1>
           <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => navigate('/')}>Home</button>
+              <button onClick={goCatalog}>Catalog</button>
               <button onClick={goManager}>Manager Profile</button>
               <button onClick={goSponsor}>Sponsor Profile</button>
               <button onClick={goAdmin}>Admin Profile</button>
@@ -323,14 +333,16 @@ function ProfilePage() {
   const [profile, setProfile] = useState({
     username: 'manager123',
     password: 'password123',
-    email: 'manager@talladeganights.com'
+    email: 'manager@talladeganights.com',
+    emailNotifications: false
   });
   
   const [editForm, setEditForm] = useState({
     username: '',
     password: '',
     confirmPassword: '',
-    email: ''
+    email: '',
+    emailNotifications: false
   });
 
   // check if user is actually logged in
@@ -351,7 +363,8 @@ function ProfilePage() {
       username: profile.username,
       password: '',
       confirmPassword: '',
-      email: profile.email
+      email: profile.email,
+      emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
     setMessage('');
@@ -363,7 +376,8 @@ function ProfilePage() {
       username: '',
       password: '',
       confirmPassword: '',
-      email: ''
+      email: '',
+      emailNotifications: false
     });
     setMessage('');
   };
@@ -392,7 +406,8 @@ function ProfilePage() {
     const updatedProfile = {
       username: editForm.username,
       password: editForm.password || profile.password,
-      email: editForm.email
+      email: editForm.email,
+      emailNotifications: editForm.emailNotifications
     };
 
     setProfile(updatedProfile);
@@ -415,11 +430,13 @@ function ProfilePage() {
   return (
     <div>
       <div className="banner">
-              <h1>React App</h1>
-              <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={handleLogout}>Logout</button>
-                  <button onClick={() => navigate('/points')}>Points</button>
-                </div>
+        <h1>Talladega Nights</h1>
+        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => navigate('/')}>Home</button>
+          <button onClick={() => navigate('/catalog')}>Catalog</button>
+          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => navigate('/points')}>Points</button>
+        </div>
       </div>
       <div className="profile-container">
         <div className="profile-header">
@@ -463,6 +480,11 @@ function ProfilePage() {
               <label>Email</label>
               <div className="field-value">{profile.email || 'Not provided'}</div>
             </div>
+
+            <div className="profile-field">
+              <label>Email Notifications</label>
+              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+            </div>
           </div>
         ) : (
           <div className="profile-edit">
@@ -484,6 +506,17 @@ function ProfilePage() {
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
               />
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editForm.emailNotifications}
+                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                />
+                Send notifications to email
+              </label>
             </div>
 
             <div className="password-section">
@@ -636,11 +669,11 @@ function SponsorProfilePage() {
   return (
     <div>
       <div className="banner">
-              <h1>Talladega Nights</h1>
-              <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={handleLogout}>Logout</button>
-                  <button onClick={() => navigate('/points')}>Points</button>
-                </div>
+        <h1>Talladega Nights</h1>
+        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => navigate('/points')}>Points</button>
+        </div>
       </div>
       <div className="profile-container">
         <div className="profile-header">
@@ -833,7 +866,8 @@ function AdminProfilePage() {
     username: 'admin123',
     password: 'password123',
     email: 'admin@talladeganights.com',
-    phone: ''
+    phone: '',
+    emailNotifications: false
   });
 
   const [editForm, setEditForm] = useState({
@@ -841,7 +875,8 @@ function AdminProfilePage() {
     password: '',
     confirmPassword: '',
     email: '',
-    phone: ''
+    phone: '',
+    emailNotifications: false
   });
 
   // check if user is actually logged in
@@ -861,7 +896,8 @@ function AdminProfilePage() {
       password: '',
       confirmPassword: '',
       email: profile.email,
-      phone: profile.phone || ''
+      phone: profile.phone || '',
+      emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
     setMessage('');
@@ -874,7 +910,8 @@ function AdminProfilePage() {
       password: '',
       confirmPassword: '',
       email: '',
-      phone: ''
+      phone: '',
+      emailNotifications: false
     });
     setMessage('');
   };
@@ -911,7 +948,8 @@ function AdminProfilePage() {
       username: editForm.username,
       password: editForm.password || profile.password,
       email: editForm.email,
-      phone: editForm.phone
+      phone: editForm.phone,
+      emailNotifications: editForm.emailNotifications
     };
 
     setProfile(updatedProfile);
@@ -987,6 +1025,11 @@ function AdminProfilePage() {
               <label>Phone</label>
               <div className="field-value">{profile.phone || 'Not provided'}</div>
             </div>
+
+            <div className="profile-field">
+              <label>Email Notifications</label>
+              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+            </div>
           </div>
         ) : (
           <div className="profile-edit">
@@ -1018,6 +1061,17 @@ function AdminProfilePage() {
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="Enter phone number"
               />
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editForm.emailNotifications}
+                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                />
+                Send notifications to email
+              </label>
             </div>
 
             <div className="password-section">
@@ -1215,6 +1269,7 @@ function App() {
             </div>
           } />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />
           <Route path="/points" element={<PointsPage />} />
