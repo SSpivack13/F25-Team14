@@ -61,7 +61,7 @@ function HomePage() {
   useEffect(() => {
     const fetchAboutInfo = async () => {
       try {
-        const response = await axios.get('/api/about');
+        const response = await axios.get(`${process.env.REACT_APP_API}/about`);
         if (response.data.status === 'success') {
           setAboutInfo(response.data.data);
         } else {
@@ -199,7 +199,7 @@ function LoginPage() {
     }
 
     try {
-      const response = await axios.post('/api/login', {
+      const response = await axios.post('{DB_PATH}/login', {
         username: loginForm.username,
         password: loginForm.password
       });
@@ -810,7 +810,7 @@ function PointsPage() {
 
         const fetchPoints = async () => {
             try {
-                const response = await fetch(`http://localhost:3001/api/users/${user.USER_ID}/points`);
+                const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/points`);
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || 'Failed to fetch points');
@@ -1168,7 +1168,7 @@ function AdminAddUser() {
         setMessageType('');
 
         try {
-            const response = await axios.post('/api/users/add', {
+            const response = await axios.post(`${process.env.REACT_APP_API}/users/add`, {
                 username,
                 password,
                 userType,
