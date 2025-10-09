@@ -61,7 +61,7 @@ function HomePage() {
   useEffect(() => {
     const fetchAboutInfo = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/about');
+        const response = await axios.get('/api/about');
         if (response.data.status === 'success') {
           setAboutInfo(response.data.data);
         } else {
@@ -199,7 +199,7 @@ function LoginPage() {
     }
 
     try {
-      const response = await axios.post('http://localhost:3001/api/login', {
+      const response = await axios.post('/api/login', {
         username: loginForm.username,
         password: loginForm.password
       });
@@ -1168,7 +1168,7 @@ function AdminAddUser() {
         setMessageType('');
 
         try {
-            const response = await axios.post('http://localhost:3001/api/users/add', {
+            const response = await axios.post('/api/users/add', {
                 username,
                 password,
                 userType,
