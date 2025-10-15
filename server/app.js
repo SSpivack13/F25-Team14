@@ -3,7 +3,6 @@ import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import aboutRoutes from './routes/about.js';
 import userRoutes from './routes/users.js';
-import testDbRoutes from './routes/testdb.js';
 
 const app = express();
 
