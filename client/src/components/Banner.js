@@ -3,32 +3,33 @@ import { useNavigate } from 'react-router-dom';
 
 function Banner() {
   const navigate = useNavigate();
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
   const goManager = () => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     if (isLoggedIn) {
       navigate('/profile');
     } else {
       navigate('/login', { state: { redirectTo: '/profile' } });
     }
   };
+
   const goSponsor = () => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     if (isLoggedIn) {
       navigate('/sponsor');
     } else {
       navigate('/login', { state: { redirectTo: '/sponsor' } });
     }
   };
+
   const goAdmin = () => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     if (isLoggedIn) {
       navigate('/admin');
     } else {
       navigate('/login', { state: { redirectTo: '/admin' } });
     }
   };
+
   const goCatalog = () => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     if (isLoggedIn) {
       navigate('/catalog');
     } else {
@@ -38,13 +39,23 @@ function Banner() {
 
   return (
     <div className="banner">
-      <h1>Talladega Nights</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <h1>Talladega Nights</h1>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => navigate('/')}>Home</button>
+          <button onClick={goCatalog}>Catalog</button>
+        </div>
+      </div>
       <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-        <button onClick={() => navigate('/')}>Home</button>
-        <button onClick={goCatalog}>Catalog</button>
-        <button onClick={goManager}>Manager Profile</button>
-        <button onClick={goSponsor}>Sponsor Profile</button>
-        <button onClick={goAdmin}>Admin Profile</button>
+        {isLoggedIn ? (
+          <>
+            <button onClick={goManager}>Manager Profile</button>
+            <button onClick={goSponsor}>Sponsor Profile</button>
+            <button onClick={goAdmin}>Admin Profile</button>
+          </>
+        ) : (
+          <button onClick={() => navigate('/login')}>Login</button>
+        )}
       </div>
     </div>
   );
