@@ -71,4 +71,55 @@ router.get('/users/:userid/points', async (req, res) => {
   }
 });
 
+router.get('/users', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query('SELECT * FROM Users');
+    connection.release();
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch users' });
+  }
+});
+
+router.put('/updateUser/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const fields = req.body;
+  if (!userId || !fields || Object.keys(fields).length === 0) {
+    return res.status(400).json({ status: 'error', message: 'User ID and at least one field required' });
+  }
+
+  const allowedFields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID'];
+  const updates = [];
+  const values = [];
+  for (const key of Object.keys(fields)) {
+    if (allowedFields.includes(key)) {
+      updates.push(`${key} = ?`);
+      values.push(fields[key]);
+    }
+  }
+  if (updates.length === 0) {
+    return res.status(400).json({ status: 'error', message: 'No valid fields to update' });
+  }
+  values.push(userId);
+
+  try {
+    const connection = await pool.getConnection();
+    const [result] = await connection.execute(
+      `UPDATE Users SET ${updates.join(', ')} WHERE USER_ID = ?`,
+      values
+    );
+    connection.release();
+    if (result.affectedRows > 0) {
+      res.json({ status: 'success', message: 'User updated successfully' });
+    } else {
+      res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to update user' });
+  }
+});
+
 export default router;

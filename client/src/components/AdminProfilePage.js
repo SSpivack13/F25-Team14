@@ -224,6 +224,7 @@ function AdminProfilePage() {
         )}
       </div>
       <button onClick={() => navigate('/admin/adduser')}>Add User</button>
+      <button onClick={() => navigate('/admin/updateuser')}>Update User</button>
     </div>
   );
 }

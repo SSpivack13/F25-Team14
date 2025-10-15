@@ -10,6 +10,7 @@ import SponsorProfilePage from './components/SponsorProfilePage';
 import PointsPage from './components/PointsPage';
 import AdminProfilePage from './components/AdminProfilePage';
 import AdminAddUser from './components/AdminAddUser';
+import UpdateUser from './components/UpdateUser';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/points" element={<PointsPage />} />
           <Route path="/admin" element={<AdminProfilePage />} />
           <Route path="/admin/adduser" element={<AdminAddUser />} />
+          <Route path="/admin/updateuser" element={<UpdateUser />} />
         </Routes>
       </div>
     </Router>
