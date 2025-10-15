@@ -15,6 +15,5 @@ app.use(express.json());
 app.use('/api', authRoutes);
 app.use('/api', aboutRoutes);
 app.use('/api', userRoutes);
-app.use('/api', testDbRoutes);
 
 export default app;
