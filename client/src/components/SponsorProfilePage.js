@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 
+//Generic profile page function, tailored to Sponsor users
 function SponsorProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +29,8 @@ function SponsorProfilePage() {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
   };
+  
+  //Editing state for changing user information
   const handleEdit = () => {
     setEditForm({
       username: profile.username,
@@ -50,6 +53,8 @@ function SponsorProfilePage() {
     });
     setMessage('');
   };
+
+  //Error messages for incomplete editing information
   const handleSave = () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');

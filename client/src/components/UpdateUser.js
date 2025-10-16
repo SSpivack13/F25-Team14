@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Banner from './Banner';
 
+//Update function that correctly updates a given user with changes provided
 function UpdateUser() {
   const [users, setUsers] = useState([]);
   const [updates, setUpdates] = useState({});

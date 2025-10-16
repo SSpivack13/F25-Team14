@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+//Generic profile page function
 function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +14,8 @@ function ProfilePage() {
     email: 'manager@talladeganights.com',
     emailNotifications: false
   });
+
+  //Editing state for changing user information
   const [editForm, setEditForm] = useState({
     username: '',
     password: '',
@@ -51,6 +54,8 @@ function ProfilePage() {
     });
     setMessage('');
   };
+
+  //Error messages for incomplete editing information
   const handleSave = () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');

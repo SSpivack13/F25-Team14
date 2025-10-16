@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { appInfo } from '../appInfo';
 
+//Home page function with dynamic information taken from the database
 function HomePage() {
   const [aboutInfo, setAboutInfo] = useState(null);
   const [error, setError] = useState('');
 
+  //Grabs information from the database for the about page, otherwise throws an error if unsuccessful
   useEffect(() => {
     const fetchAboutInfo = async () => {
       try {

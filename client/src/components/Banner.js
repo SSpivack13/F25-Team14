@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
+//Banner function for each page (Manaager, Sponsor, Admin, Catalog)
 function Banner() {
   const navigate = useNavigate();
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
