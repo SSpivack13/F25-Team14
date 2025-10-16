@@ -6,6 +6,11 @@ function Banner() {
   const navigate = useNavigate();
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    navigate('/');
+  };
+
   const goManager = () => {
     if (isLoggedIn) {
       navigate('/profile');
@@ -62,6 +67,7 @@ function Banner() {
             <button onClick={goSponsor}>Sponsor Profile</button>
             <button onClick={goAdmin}>Admin Profile</button>
             <button onClick={goNotifications}>Notifications</button>
+            <button onClick={handleLogout}>Logout</button>
           </>
         ) : (
           <button onClick={() => navigate('/login')}>Login</button>

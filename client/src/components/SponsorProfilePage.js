@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import Banner from './Banner';
 
 //Generic profile page function, tailored to Sponsor users
 function SponsorProfilePage() {
@@ -98,13 +99,7 @@ function SponsorProfilePage() {
   };
   return (
     <div>
-      <div className="banner">
-        <h1>Talladega Nights</h1>
-        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleLogout}>Logout</button>
-          <button onClick={() => navigate('/points')}>Points</button>
-        </div>
-      </div>
+      <Banner />
       <div className="profile-container">
         <div className="profile-header">
           <h1>Sponsor Profile</h1>
