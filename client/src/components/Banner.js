@@ -38,6 +38,14 @@ function Banner() {
     }
   };
 
+  const goNotifications = () => {
+    if (isLoggedIn) {
+      navigate('/notifications');
+    } else {
+      navigate('/login', { state: { redirectTo: '/notifications' } });
+    }
+  };
+
   return (
     <div className="banner">
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -53,6 +61,7 @@ function Banner() {
             <button onClick={goManager}>Manager Profile</button>
             <button onClick={goSponsor}>Sponsor Profile</button>
             <button onClick={goAdmin}>Admin Profile</button>
+            <button onClick={goNotifications}>Notifications</button>
           </>
         ) : (
           <button onClick={() => navigate('/login')}>Login</button>
