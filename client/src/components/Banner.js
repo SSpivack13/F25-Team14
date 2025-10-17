@@ -11,27 +11,22 @@ function Banner() {
     navigate('/');
   };
 
-  const goManager = () => {
+  // Navigation button for profile page, is based on user type
+  // Done this way so different user types can have different profile page options (e.g., admins can add users)
+  const goProfile = () => {
     if (isLoggedIn) {
-      navigate('/profile');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userType = user?.USER_TYPE;
+      
+      if (userType === 'admin') {
+        navigate('/admin');
+      } else if (userType === 'sponsor') {
+        navigate('/sponsor');
+      } else {
+        navigate('/profile');
+      }
     } else {
       navigate('/login', { state: { redirectTo: '/profile' } });
-    }
-  };
-
-  const goSponsor = () => {
-    if (isLoggedIn) {
-      navigate('/sponsor');
-    } else {
-      navigate('/login', { state: { redirectTo: '/sponsor' } });
-    }
-  };
-
-  const goAdmin = () => {
-    if (isLoggedIn) {
-      navigate('/admin');
-    } else {
-      navigate('/login', { state: { redirectTo: '/admin' } });
     }
   };
 
@@ -63,9 +58,7 @@ function Banner() {
       <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
         {isLoggedIn ? (
           <>
-            <button onClick={goManager}>Manager Profile</button>
-            <button onClick={goSponsor}>Sponsor Profile</button>
-            <button onClick={goAdmin}>Admin Profile</button>
+            <button onClick={goProfile}>Profile</button>
             <button onClick={goNotifications}>Notifications</button>
             <button onClick={handleLogout}>Logout</button>
           </>
