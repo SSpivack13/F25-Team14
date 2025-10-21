@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import Banner from './Banner';
 
+//Generic profile page function
 function ProfilePage() {
+  const navigate = useNavigate();
+  
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
-  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState(user?.USER_TYPE || '');
+  const [loading, setLoading] = useState(true);
+
   const [profile, setProfile] = useState({
-    username: 'manager123',
-    password: 'password123',
-    email: 'manager@talladeganights.com',
+    username: '',
+    password: 'password123', // Keep as placeholder
+    email: '',
+    phone: '',
     emailNotifications: false
   });
+
   const [editForm, setEditForm] = useState({
     username: '',
     password: '',
@@ -20,11 +31,58 @@ function ProfilePage() {
     email: '',
     emailNotifications: false
   });
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+  useEffect(() => {
+    if (!isLoggedIn || !user?.USER_ID) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/profile`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch user profile');
+        }
+        const data = await response.json();
+        if (data.status === 'success') {
+          const userData = data.data;
+          setUserRole(userData.USER_TYPE);
+          setProfile(prev => ({
+            ...prev,
+            username: userData.USERNAME,
+            email: userData.EMAIL || `${userData.USER_TYPE}@talladeganights.com`
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        setMessage('Failed to load profile data');
+        setMessageType('error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [isLoggedIn, user?.USER_ID]);
+
   if (!isLoggedIn) {
-    navigate('/login');
-    return null;
+    return <Navigate to="/login" replace />;
   }
+
+  if (loading || !userRole) {
+    return <div>Loading...</div>;
+  }
+
+  const getProfileTitle = () => {
+    switch(userRole) {
+      case 'admin': return 'Admin Profile';
+      case 'sponsor': return 'Sponsor Profile';
+      case 'manager': return 'Manager Profile';
+      default: return 'Driver Profile';
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
@@ -51,6 +109,8 @@ function ProfilePage() {
     });
     setMessage('');
   };
+
+  //Error messages for incomplete editing information
   const handleSave = () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');
@@ -89,18 +149,10 @@ function ProfilePage() {
   };
   return (
     <div>
-      <div className="banner">
-        <h1>Talladega Nights</h1>
-        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => navigate('/')}>Home</button>
-          <button onClick={() => navigate('/catalog')}>Catalog</button>
-          <button onClick={handleLogout}>Logout</button>
-          <button onClick={() => navigate('/points')}>Points</button>
-        </div>
-      </div>
+      <Banner />
       <div className="profile-container">
         <div className="profile-header">
-          <h1>Manager Profile</h1>
+          <h1>{getProfileTitle()}</h1>
           {!isEditing && (
             <button className="edit-btn" onClick={handleEdit}>
               Edit Profile

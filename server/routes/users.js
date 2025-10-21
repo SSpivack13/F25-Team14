@@ -122,4 +122,32 @@ router.put('/updateUser/:userId', async (req, res) => {
   }
 });
 
+// Getting User Profile With User Type 
+router.get('/users/:userid/profile', async (req, res) => {
+  const { userid } = req.params;
+
+  if ( !userid ) {
+    return res.status( 400 ).json({ status: 'error', message: 'User ID is required' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    const [ rows ] = await connection.execute(
+      'SELECT USER_ID, USERNAME, EMAIL, F_NAME, L_NAME, USER_TYPE FROM Users WHERE USER_ID = ?',
+      [ userid ]
+    );
+    connection.release();
+
+    if ( rows.length > 0 ) {
+      const userProfile = rows[ 0 ];
+      res.json({ status: 'success', data: userProfile });
+    } else {
+      res.status( 404 ).json({ status: 'error', message: 'User not found' });
+    }
+  } catch ( err ) {
+    console.error( 'Error fetching user profile:', err );
+    res.status( 500 ).json({ status: 'error', message: 'An internal server error occurred' });
+  }
+});
+
 export default router;

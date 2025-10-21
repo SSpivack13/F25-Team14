@@ -11,6 +11,7 @@ import PointsPage from './components/PointsPage';
 import AdminProfilePage from './components/AdminProfilePage';
 import AdminAddUser from './components/AdminAddUser';
 import UpdateUser from './components/UpdateUser';
+import NotificationsPage from './components/NotificationsPage';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/admin" element={<AdminProfilePage />} />
           <Route path="/admin/adduser" element={<AdminAddUser />} />
           <Route path="/admin/updateuser" element={<UpdateUser />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
       </div>
     </Router>

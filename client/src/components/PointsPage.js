@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+//Points page function that dynamically updates with the appropriate number of points for a given user
 function PointsPage() {
   const [pointsData, setPointsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,6 +14,8 @@ function PointsPage() {
       navigate('/login');
       return;
     }
+
+    //Fetches points from the database related to the user
     const fetchPoints = async () => {
       try {
         const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/points`);

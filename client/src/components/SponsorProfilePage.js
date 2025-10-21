@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import Banner from './Banner';
 
+//Generic profile page function, tailored to Sponsor users
 function SponsorProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +30,8 @@ function SponsorProfilePage() {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
   };
+  
+  //Editing state for changing user information
   const handleEdit = () => {
     setEditForm({
       username: profile.username,
@@ -50,6 +54,8 @@ function SponsorProfilePage() {
     });
     setMessage('');
   };
+
+  //Error messages for incomplete editing information
   const handleSave = () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');
@@ -93,13 +99,7 @@ function SponsorProfilePage() {
   };
   return (
     <div>
-      <div className="banner">
-        <h1>Talladega Nights</h1>
-        <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleLogout}>Logout</button>
-          <button onClick={() => navigate('/points')}>Points</button>
-        </div>
-      </div>
+      <Banner />
       <div className="profile-container">
         <div className="profile-header">
           <h1>Sponsor Profile</h1>

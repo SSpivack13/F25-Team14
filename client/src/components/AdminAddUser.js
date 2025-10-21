@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+//Admin function for adding a new user to the system
 function AdminAddUser() {
   const navigate = useNavigate();
+
+  //Default states when creating a new user
   const [f_name, setf_name] = useState("");
   const [l_name, setl_name] = useState("");
   const [username, setUsername] = useState("");
@@ -33,6 +36,8 @@ function AdminAddUser() {
         setUserType("driver");
       }
     } catch (error) {
+
+      //Separate errors for problems when creating a user
       if (error.response) {
         setMessage(error.response.data.message || 'An error occurred while creating the user.');
       } else if (error.request) {
@@ -44,6 +49,8 @@ function AdminAddUser() {
     }
   };
   return (
+
+    //Formatting for creating user functionality
     <div style={{ padding: "20px" }}>
       <button onClick={() => navigate('/admin')}>Back to Admin</button>
       <form

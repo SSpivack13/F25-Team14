@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Banner from './Banner';
 
+//Login page that takes a username and password
 function LoginPage() {
   const location = useLocation();
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -10,6 +11,7 @@ function LoginPage() {
   const [messageType, setMessageType] = useState('');
   const navigate = useNavigate();
 
+  //Separate routes for each type of user
   const intendedRoute = location.state?.redirectTo;
   const loginTitle = intendedRoute === '/profile'
     ? 'Manager Login'
@@ -23,6 +25,7 @@ function LoginPage() {
     : intendedRoute === '/admin'? 'admin'
     : undefined;
 
+  //Demo credentials for ease of use
   const demoUsers = {
     manager: { password: 'password', USER_TYPE: 'manager' },
     sponsor: { password: 'password', USER_TYPE: 'sponsor' },
@@ -43,6 +46,7 @@ function LoginPage() {
     setLoginForm({ username: 'admin', password: 'password' });
   };
 
+  //Error handler for missing information
   const handleLogin = async () => {
     if (!loginForm.username.trim()) {
       setMessage('Username is required');
