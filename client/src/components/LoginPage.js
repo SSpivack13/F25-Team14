@@ -80,7 +80,7 @@ function LoginPage() {
       return;
     }
     try {
-      const response = await axios.post('{DB_PATH}/login', {
+      const response = await axios.post(`${process.env.REACT_APP_API}/login`, {
         username: loginForm.username,
         password: loginForm.password
       });
