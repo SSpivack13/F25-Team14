@@ -155,38 +155,6 @@ function LoginPage() {
               Login
             </button>
           </div>
-          <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '6px', fontSize: '0.9rem', color: '#666', display: 'grid', gap: '0.75rem' }}>
-            {(loginTitle === 'Login' || loginTitle === 'Manager Login') && (
-              <div>
-                <strong>Manager Demo:</strong><br />
-                Username: <code>manager</code><br />
-                Password: <code>password</code><br />
-                <button className="save-btn" style={{ marginTop: '0.5rem' }} onClick={useManagerDemo}>
-                  Use Manager Demo
-                </button>
-              </div>
-            )}
-            {(loginTitle === 'Login' || loginTitle === 'Sponsor Login') && (
-              <div>
-                <strong>Sponsor Demo:</strong><br />
-                Username: <code>sponsor</code><br />
-                Password: <code>password</code><br />
-                <button className="save-btn" style={{ marginTop: '0.5rem' }} onClick={useSponsorDemo}>
-                  Use Sponsor Demo
-                </button>
-              </div>
-            )}
-            {(loginTitle === 'Login' || loginTitle === 'Admin Login') && (
-              <div>
-                <strong>Admin Demo:</strong><br />
-                Username: <code>admin</code><br />
-                Password: <code>password</code><br />
-                <button className="save-btn" style={{ marginTop: '0.5rem' }} onClick={useAdminDemo}>
-                  Use Admin Demo
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
