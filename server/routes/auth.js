@@ -21,6 +21,13 @@ router.post('/login', async (req, res) => {
 
     if (rows.length > 0) {
       const user = rows[0];
+      
+      // Login Log audit
+      await connection.execute(
+        'INSERT INTO AuditLog (LOG_TYPE, USER_ID, TRANS_ID, LOG_DATE) VALUES (?, ?, NULL, NOW())',
+        ['LOGIN', user.USER_ID]
+      );
+      
       // Don't send password back to client
       delete user.password;
       res.json({ status: 'success', message: 'Login successful', user });
