@@ -1,7 +1,7 @@
 import './App.css';
 import './Template.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import CatalogPage from './Catalog';
+import Catalog from './components/catalogue';
 import Banner from './components/Banner';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
@@ -24,7 +24,7 @@ function App() {
             </div>
           } />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/catalog" element={<Catalog />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />
           <Route path="/points" element={<PointsPage />} />
