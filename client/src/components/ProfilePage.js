@@ -192,6 +192,9 @@ function ProfilePage() {
               <label>Email Notifications</label>
               <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
             </div>
+            {userRole === 'admin' ?(
+              <button onClick={() =>navigate('/updateUser')}>Update User Details</button>
+            ) : null}
           </div>
         ) : (
           <div className="profile-edit">

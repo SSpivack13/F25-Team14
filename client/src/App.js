@@ -12,6 +12,7 @@ import AdminProfilePage from './components/AdminProfilePage';
 import AdminAddUser from './components/AdminAddUser';
 import UpdateUser from './components/UpdateUser';
 import NotificationsPage from './components/NotificationsPage';
+import Cart from './components/cart';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="/admin" element={<AdminProfilePage />} />
           <Route path="/admin/adduser" element={<AdminAddUser />} />
           <Route path="/admin/updateuser" element={<UpdateUser />} />
+          <Route path="/cart" element={<Cart />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
       </div>

@@ -11,6 +11,7 @@ function AdminAddUser() {
   const [l_name, setl_name] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [userType, setUserType] = useState("driver");
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
@@ -27,6 +28,9 @@ function AdminAddUser() {
         l_name
       });
       if (response.data.status === 'success') {
+        const axios = require('axios');
+        const user = { username: username, email: email, password: password };
+        axios.post('https://fakestoreapi.com/users', user).then(response => console.log(response.data));
         setMessage('User created successfully!');
         setMessageType('success');
         setf_name("");
@@ -90,6 +94,12 @@ function AdminAddUser() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+        />
+        <input
+          type="Email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
         <select value={userType} onChange={(e) => setUserType(e.target.value)}>
           <option value="driver">Driver</option>
