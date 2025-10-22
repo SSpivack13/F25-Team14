@@ -16,7 +16,9 @@ function Banner() {
         <h1>Talladega Nights</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => navigate('/')}>Home</button>
-          <button onClick={() => navigate('/catalog')}>Catalog</button>
+          {isLoggedIn === true ? (
+            <button onClick={() => navigate('/catalog')}>Catalog</button>
+          ) : null}
         </div>
       </div>
       <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
