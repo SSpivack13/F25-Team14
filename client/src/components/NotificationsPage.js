@@ -45,7 +45,7 @@ function NotificationsPage() {
   return (
     <div>
       <Banner />
-      <div className="template-content" style={{ padding: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}} >
         <h2>Send Notification</h2>
         {status && (
           <div className={`message ${status.type}`} style={{ marginBottom: '1rem' }}>{status.message}</div>

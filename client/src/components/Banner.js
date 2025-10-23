@@ -46,6 +46,14 @@ function Banner() {
     }
   };
 
+  const goPoints = () => {
+    if (isLoggedIn) {
+      navigate('/points');
+    } else {
+      navigate('/login', { state: { redirectTo: '/points' } });
+    }
+  };
+
   return (
     <div className="banner">
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -53,7 +61,9 @@ function Banner() {
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => navigate('/')}>Home</button>
           {isLoggedIn === true ? (
-            <button onClick={goCatalog}>Catalog</button>
+            <>
+              <button onClick={goCatalog}>Catalog</button>
+            </>
           ) : null}
         </div>
       </div>
@@ -62,6 +72,10 @@ function Banner() {
           <>
             <button onClick={goProfile}>Profile</button>
             <button onClick={goNotifications}>Notifications</button>
+            {(() => {
+              const user = JSON.parse(localStorage.getItem('user') || '{}');
+              return (user?.USER_TYPE === 'admin' || user?.USER_TYPE === 'sponsor') ? <button onClick={goPoints}>Points</button> : null;
+            })()}
             <button onClick={handleLogout}>Logout</button>
           </>
         ) : (
