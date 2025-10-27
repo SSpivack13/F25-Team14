@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
 
@@ -9,18 +10,24 @@ function AdminProfilePage() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   const [profile, setProfile] = useState({
-    username: 'admin123',
-    password: 'password123',
-    email: 'admin@talladeganights.com',
-    phone: '',
-    emailNotifications: false
+    username: user?.USERNAME || user?.username,
+    password: user?.PASSWORD || user?.password,
+    email: user?.EMAIL || user?.email,
+    firstName: user?.F_NAME || user?.f_name || user?.firstName,
+    lastName: user?.L_NAME || user?.l_name || user?.lastName,
+    phone: user?.PHONE || user?.phone,
+    emailNotifications: user?.EMAIL_NOTIFICATIONS || user?.emailNotifications || false
   });
   const [editForm, setEditForm] = useState({
     username: '',
     password: '',
     confirmPassword: '',
     email: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     emailNotifications: false
   });
@@ -41,7 +48,9 @@ function AdminProfilePage() {
       password: '',
       confirmPassword: '',
       email: profile.email,
-      phone: profile.phone || '',
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      phone: profile.phone,
       emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
@@ -54,6 +63,8 @@ function AdminProfilePage() {
       password: '',
       confirmPassword: '',
       email: '',
+      firstName: '',
+      lastName: '',
       phone: '',
       emailNotifications: false
     });
@@ -61,7 +72,7 @@ function AdminProfilePage() {
   };
 
   //Error messages for incomplete editing information
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');
       setMessageType('error');
@@ -82,20 +93,48 @@ function AdminProfilePage() {
       setMessageType('error');
       return;
     }
-    const updatedProfile = {
-      username: editForm.username,
-      password: editForm.password || profile.password,
-      email: editForm.email,
-      phone: editForm.phone,
-      emailNotifications: editForm.emailNotifications
+    // Build payload for server
+    const payload = {
+      USERNAME: editForm.username,
+      EMAIL: editForm.email,
+      F_NAME: editForm.firstName,
+      L_NAME: editForm.lastName,
+      PHONE: editForm.phone
     };
-    setProfile(updatedProfile);
-    setIsEditing(false);
-    setMessage('Profile updated successfully!');
-    setMessageType('success');
-    setTimeout(() => {
-      setMessage('');
-    }, 3000);
+    if (editForm.password) payload.PASSWORD = editForm.password;
+
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = storedUser?.USER_ID;
+      if (!userId) throw new Error('Missing user ID');
+
+      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, payload);
+      if (res.data?.status === 'success') {
+        const updatedProfile = {
+          ...profile,
+          username: editForm.username,
+          email: editForm.email,
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          phone: editForm.phone
+        };
+        setProfile(updatedProfile);
+        const newStoredUser = { ...storedUser, USERNAME: editForm.username, EMAIL: editForm.email, F_NAME: editForm.firstName, L_NAME: editForm.lastName };
+        localStorage.setItem('user', JSON.stringify(newStoredUser));
+
+        setIsEditing(false);
+        setMessage('Profile updated successfully!');
+        setMessageType('success');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage(res.data?.message || 'Failed to update profile');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error('Error updating admin profile:', err);
+      setMessage('Failed to update profile');
+      setMessageType('error');
+    }
   };
   const handleInputChange = (field, value) => {
     setEditForm(prev => ({
@@ -151,6 +190,14 @@ function AdminProfilePage() {
         {!isEditing ? (
           <div className="profile-view">
             <div className="profile-field">
+              <label>First Name</label>
+              <div className="field-value">{profile.firstName || 'Not provided'}</div>
+            </div>
+            <div className="profile-field">
+              <label>Last Name</label>
+              <div className="field-value">{profile.lastName || 'Not provided'}</div>
+            </div>
+            <div className="profile-field">
               <label>Username</label>
               <div className="field-value">{profile.username}</div>
             </div>
@@ -183,6 +230,24 @@ function AdminProfilePage() {
           </div>
         ) : (
           <div className="profile-edit">
+            <div className="form-group">
+              <label>First Name</label>
+              <input
+                type="text"
+                value={editForm.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Last Name</label>
+              <input
+                type="text"
+                value={editForm.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                placeholder="Enter last name"
+              />
+            </div>
             <div className="form-group">
               <label>Username</label>
               <input
