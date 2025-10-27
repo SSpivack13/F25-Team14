@@ -24,6 +24,7 @@ function AdminProfilePage() {
     phone: '',
     emailNotifications: false
   });
+  const [newOrg, setNewOrg] = useState({ ORG_LEADER: '' });
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
@@ -102,6 +103,34 @@ function AdminProfilePage() {
       [field]: value
     }));
   };
+
+  const handleCreateOrg = async () => {
+    if (!newOrg.ORG_LEADER) return;
+    
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ORG_LEADER: newOrg.ORG_LEADER, user })
+      });
+      
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage('Organization created successfully!');
+        setMessageType('success');
+        setNewOrg({ ORG_LEADER: '' });
+      } else {
+        setMessage(data.message || 'Failed to create organization');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
   return (
     <div>
       <Banner />
@@ -225,6 +254,17 @@ function AdminProfilePage() {
       </div>
       <button onClick={() => navigate('/admin/adduser')}>Add User</button>
       <button onClick={() => navigate('/admin/updateuser')}>Update User</button>
+      <div style={{ marginTop: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <h3>Create Organization</h3>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input 
+            placeholder="Supervisor Username" 
+            value={newOrg.ORG_LEADER} 
+            onChange={(e) => setNewOrg({ ORG_LEADER: e.target.value })} 
+          />
+          <button onClick={handleCreateOrg}>Create Organization</button>
+        </div>
+      </div>
     </div>
   );
 }

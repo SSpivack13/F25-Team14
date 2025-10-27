@@ -5,6 +5,7 @@ import aboutRoutes from './routes/about.js';
 import userRoutes from './routes/users.js';
 import notificationsRoutes from './routes/notifications.js';
 import pointrulesRoutes from './routes/pointrules.js';
+import organizationsRoutes from './routes/organizations.js';
 
 const app = express();
 
@@ -18,5 +19,6 @@ app.use('/api', aboutRoutes);
 app.use('/api', userRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', pointrulesRoutes);
+app.use('/api', organizationsRoutes);
 
 export default app;
