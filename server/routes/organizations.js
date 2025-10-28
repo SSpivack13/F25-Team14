@@ -89,4 +89,55 @@ router.post('/organizations/add', async (req, res) => {
   }
 });
 
+// Get organization details by user's ORG_ID
+router.get('/organizations/my-org/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+    
+    // Get organization ID for user
+    const [userRows] = await connection.execute(
+      'SELECT ORG_ID FROM Users WHERE USER_ID = ?',
+      [userId]
+    );
+
+    if (userRows.length === 0 || !userRows[0].ORG_ID) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'User not assigned to any organization' });
+    }
+
+    const orgId = userRows[0].ORG_ID;
+
+    // Get organization details
+    const [orgRows] = await connection.execute(
+      'SELECT * FROM Organizations WHERE ORG_ID = ?',
+      [orgId]
+    );
+
+    // Get all members of this organization
+    const [memberRows] = await connection.execute(
+      'SELECT USER_ID, USERNAME, F_NAME, L_NAME, USER_TYPE FROM Users WHERE ORG_ID = ?',
+      [orgId]
+    );
+
+    connection.release();
+
+    if (orgRows.length > 0) {
+      res.json({ 
+        status: 'success', 
+        data: {
+          organization: orgRows[0],
+          members: memberRows
+        }
+      });
+    } else {
+      res.status(404).json({ status: 'error', message: 'Organization not found' });
+    }
+  } catch (err) {
+    console.error('Error fetching organization:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch organization' });
+  }
+});
+
 export default router;

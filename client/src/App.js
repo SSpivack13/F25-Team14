@@ -13,6 +13,7 @@ import AdminAddUser from './components/AdminAddUser';
 import UpdateUser from './components/UpdateUser';
 import NotificationsPage from './components/NotificationsPage';
 import Cart from './components/cart';
+import Organizations from './components/Organizations';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
           <Route path="/admin/updateuser" element={<UpdateUser />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/organizations" element={<Organizations />} />
         </Routes>
       </div>
     </Router>
