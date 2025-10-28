@@ -86,6 +86,31 @@ function PointsPage() {
                   <td>{r.ORG_ID || '-'}</td>
                   <td>{r.RULE_TYPE}</td>
                   <td>{r.PT_CHANGE}</td>
+                  {(user?.USER_TYPE === 'admin' || user?.USER_TYPE === 'sponsor') && (
+                    <td style={{ paddingLeft: '12px' }}>
+                      <button onClick={async () => {
+                        if (typeof window !== 'undefined' && !window.confirm('Delete this rule?')) return;
+                        try {
+                          const res = await fetch(`${process.env.REACT_APP_API}/pointrules/${r.RULE_ID}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user })
+                          });
+                          const data = await res.json();
+                          if (data.status === 'success') {
+                            // refresh rules
+                            const rr = rules.filter(x => x.RULE_ID !== r.RULE_ID);
+                            setRules(rr);
+                          } else {
+                            alert(data.message || 'Failed to delete rule');
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          alert('Server error');
+                        }
+                      }}>Delete</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
