@@ -6,6 +6,8 @@ import userRoutes from './routes/users.js';
 import notificationsRoutes from './routes/notifications.js';
 import pointrulesRoutes from './routes/pointrules.js';
 import organizationsRoutes from './routes/organizations.js';
+import logsRoutes from './routes/logs.js';
+import transactionsRoutes from './routes/transactions.js';
 
 const app = express();
 
@@ -20,5 +22,7 @@ app.use('/api', userRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', pointrulesRoutes);
 app.use('/api', organizationsRoutes);
+app.use('/api', logsRoutes);
+app.use('/api', transactionsRoutes);
 
 export default app;

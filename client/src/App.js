@@ -9,6 +9,8 @@ import ProfilePage from './components/ProfilePage';
 import SponsorProfilePage from './components/SponsorProfilePage';
 import PointsPage from './components/PointsPage';
 import AdminProfilePage from './components/AdminProfilePage';
+import AdminLogsPage from './components/AdminLogsPage';
+import AdminTransactionsPage from './components/AdminTransactionsPage';
 import AdminAddUser from './components/AdminAddUser';
 import UpdateUser from './components/UpdateUser';
 import NotificationsPage from './components/NotificationsPage';
@@ -32,6 +34,8 @@ function App() {
           <Route path="/sponsor" element={<SponsorProfilePage />} />
           <Route path="/points" element={<PointsPage />} />
           <Route path="/admin" element={<AdminProfilePage />} />
+          <Route path="/admin/logs" element={<AdminLogsPage />} />
+          <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
           <Route path="/admin/adduser" element={<AdminAddUser />} />
           <Route path="/admin/updateuser" element={<UpdateUser />} />
           <Route path="/cart" element={<Cart />} />

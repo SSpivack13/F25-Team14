@@ -222,13 +222,20 @@ function AdminProfilePage() {
             <div className="profile-field">
               <label>Phone</label>
               <div className="field-value">{profile.phone || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Email Notifications</label>
-              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+          </div>
+          <div className="profile-field">
+            <label>Email Notifications</label>
+            <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+          </div>
+          <div className="profile-field">
+            <label>Admin Tools</label>
+            <div className="field-value" style={{ display: 'flex', gap: '8px' }}>
+              <button className="edit-btn" onClick={() => navigate('/admin/logs')}>View Audit Logs</button>
+              <button className="edit-btn" onClick={() => navigate('/admin/transactions')}>View Points Transactions</button>
             </div>
           </div>
-        ) : (
+        </div>
+      ) : (
           <div className="profile-edit">
             <div className="form-group">
               <label>First Name</label>
