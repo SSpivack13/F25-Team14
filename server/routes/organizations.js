@@ -44,9 +44,9 @@ router.post('/organizations/add', async (req, res) => {
 
     const supervisorUser = userRows[0];
 
-    if (supervisorUser.USER_TYPE !== 'supervisor') {
+    if (supervisorUser.USER_TYPE !== 'sponsor') {
       connection.release();
-      return res.status(400).json({ status: 'error', message: 'User is not a supervisor' });
+      return res.status(400).json({ status: 'error', message: 'User is not a sponsor' });
     }
 
     // Check if this supervisor is already leading an organization

@@ -323,7 +323,7 @@ function AdminProfilePage() {
         <h3>Create Organization</h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input 
-            placeholder="Supervisor Username" 
+            placeholder="Sponsor Username" 
             value={newOrg.ORG_LEADER} 
             onChange={(e) => setNewOrg({ ORG_LEADER: e.target.value })} 
           />
