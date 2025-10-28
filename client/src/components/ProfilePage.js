@@ -24,7 +24,7 @@ function ProfilePage() {
     firstName: user?.F_NAME || user?.f_name || user?.firstName,
     lastName: user?.L_NAME || user?.l_name || user?.lastName,
     phone: user?.PHONE || user?.phone,
-    emailNotifications: false
+    emailNotifications: user?.EMAIL_NOTIFICATIONS || user?.emailNotifications || false
   });
 
   const [editForm, setEditForm] = useState({

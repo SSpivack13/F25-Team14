@@ -73,7 +73,7 @@ function SponsorProfilePage() {
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
-  
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
@@ -242,15 +242,6 @@ function SponsorProfilePage() {
         ) : (
           <div className="profile-edit">
             <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={editForm.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                placeholder="Enter username"
-              />
-            </div>
-            <div className="form-group">
               <label>First Name</label>
               <input
                 type="text"
@@ -266,6 +257,15 @@ function SponsorProfilePage() {
                 value={editForm.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
                 placeholder="Enter last name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Username</label>
+              <input
+                type="text"
+                value={editForm.username}
+                onChange={(e) => handleInputChange('username', e.target.value)}
+                placeholder="Enter username"
               />
             </div>
             <div className="form-group">
