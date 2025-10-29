@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Banner from './Banner';
 
-//Points page function that dynamically updates with the appropriate number of points for a given user
 function PointsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,7 +11,6 @@ function PointsPage() {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   const user = JSON.parse(localStorage.getItem('user'));
   useEffect(() => {
-    // Only allow admin or sponsor users to access this page
     if (!isLoggedIn || !user) {
       navigate('/login');
       return;

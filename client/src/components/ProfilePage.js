@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
 
-//Generic profile page function
 function ProfilePage() {
   const navigate = useNavigate();
   
@@ -18,7 +17,7 @@ function ProfilePage() {
 
   const [profile, setProfile] = useState({
     username: '',
-    password: 'password123', // Keep as placeholder
+    password: 'password123',
     email: '',
     phone: '',
     emailNotifications: false
@@ -110,7 +109,6 @@ function ProfilePage() {
     setMessage('');
   };
 
-  //Error messages for incomplete editing information
   const handleSave = () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');

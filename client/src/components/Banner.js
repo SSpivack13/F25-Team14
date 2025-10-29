@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-//Banner function for each page (Manaager, Sponsor, Admin, Catalog)
 function Banner() {
   const navigate = useNavigate();
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -11,8 +10,6 @@ function Banner() {
     navigate('/');
   };
 
-  // Navigation button for profile page, is based on user type
-  // Done this way so different user types can have different profile page options (e.g., admins can add users)
   const goProfile = () => {
     if (isLoggedIn) {
       const user = JSON.parse(localStorage.getItem('user') || '{}');

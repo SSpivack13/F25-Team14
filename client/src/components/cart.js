@@ -15,14 +15,12 @@ function Cart() {
   useEffect(() => {
     if (!isLoggedIn || !user?.USER_ID) navigate("/login");
     loadCart();
-    // eslint-disable-next-line
   }, []);
 
   const loadCart = async () => {
     const localCart = getCart(user.USER_ID);
     setCart(localCart);
 
-    // fetch product details
     const ids = localCart.products.map(p => p.productId);
     const data = {};
     await Promise.all(ids.map(async id => {
@@ -43,17 +41,15 @@ function Cart() {
   }, 0);
 
   const checkout = async () => {
-    // update points locally
     const newPoints = (user.POINT_TOTAL || 0) - totalPoints;
     user.POINT_TOTAL = newPoints;
     localStorage.setItem("user", JSON.stringify(user));
 
-    // optional: update on backend
     try {
       await axios.put(`${process.env.REACT_APP_API}/updateUser/${user.USER_ID}`, { POINT_TOTAL: newPoints });
       alert(`Checkout successful! Remaining points: ${newPoints}`);
       setCart({ products: [] });
-      localStorage.removeItem(`user_cart_${user.USER_ID}`); // clear cart
+      localStorage.removeItem(`user_cart_${user.USER_ID}`);
     } catch (err) {
       console.error(err);
       alert("Checkout failed");

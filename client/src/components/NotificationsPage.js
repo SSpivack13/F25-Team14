@@ -15,7 +15,6 @@ function NotificationsPage() {
     setStatus(null);
     if (!form.notif_type.trim() || !form.notif_content.trim()) return setStatus({ type: 'error', message: 'Type and content required' });
 
-    // Build recipients payload
     let recPayload = null;
     if (recipients.mode === 'single') {
       recPayload = { type: 'user', user_id: Number(recipients.value) };

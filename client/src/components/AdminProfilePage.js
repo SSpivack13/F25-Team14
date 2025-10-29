@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
 
-//Generic profile page function, tailored to Admin users
 function AdminProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +32,6 @@ function AdminProfilePage() {
     navigate('/');
   };
   
-  //Editing state for changing user information
   const handleEdit = () => {
     setEditForm({
       username: profile.username,
@@ -59,7 +57,6 @@ function AdminProfilePage() {
     setMessage('');
   };
 
-  //Error messages for incomplete editing information
   const handleSave = () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');
