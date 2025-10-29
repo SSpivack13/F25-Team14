@@ -58,4 +58,31 @@ router.post('/pointrules/add', async (req, res) => {
   }
 });
 
+// Delete a point rule by RULE_ID
+router.delete('/pointrules/:ruleId', async (req, res) => {
+  const { ruleId } = req.params;
+  const { user } = req.body || {};
+  if (!user || !user.USER_TYPE) {
+    return res.status(401).json({ status: 'error', message: 'Unauthorized: user info required' });
+  }
+  const role = user.USER_TYPE;
+  if (!(role === 'admin' || role === 'sponsor')) {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only admin or sponsor can delete point rules' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    const [result] = await connection.execute('DELETE FROM PointRules WHERE RULE_ID = ?', [ruleId]);
+    connection.release();
+    if (result.affectedRows > 0) {
+      res.json({ status: 'success', message: 'Point rule deleted' });
+    } else {
+      res.status(404).json({ status: 'error', message: 'Point rule not found' });
+    }
+  } catch (err) {
+    console.error('Error deleting point rule:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to delete point rule' });
+  }
+});
+
 export default router;

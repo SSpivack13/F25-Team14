@@ -51,6 +51,14 @@ function Banner() {
     }
   };
 
+  const goOrganizations = () => {
+    if (isLoggedIn) {
+      navigate('/organizations');
+    } else {
+      navigate('/login', { state: { redirectTo: '/organizations' } });
+    }
+  };
+
   return (
     <div className="banner">
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -72,6 +80,10 @@ function Banner() {
             {(() => {
               const user = JSON.parse(localStorage.getItem('user') || '{}');
               return (user?.USER_TYPE === 'admin' || user?.USER_TYPE === 'sponsor') ? <button onClick={goPoints}>Points</button> : null;
+            })()}
+            {(() => {
+              const user = JSON.parse(localStorage.getItem('user') || '{}');
+              return user?.ORG_ID ? <button onClick={goOrganizations}>My Organization</button> : null;
             })()}
             <button onClick={handleLogout}>Logout</button>
           </>
