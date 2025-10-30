@@ -9,6 +9,7 @@ import ProfilePage from './components/ProfilePage';
 import SponsorProfilePage from './components/SponsorProfilePage';
 import PointsPage from './components/PointsPage';
 import AdminProfilePage from './components/AdminProfilePage';
+import AdjustPointsPage from './components/AdjustPointsPage';
 import AdminLogsPage from './components/AdminLogsPage';
 import AdminTransactionsPage from './components/AdminTransactionsPage';
 import AdminAddUser from './components/AdminAddUser';
@@ -32,6 +33,7 @@ function App() {
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />
+          <Route path="/adjust-points" element={<AdjustPointsPage />} />
           <Route path="/points" element={<PointsPage />} />
           <Route path="/admin" element={<AdminProfilePage />} />
           <Route path="/admin/logs" element={<AdminLogsPage />} />
