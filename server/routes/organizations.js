@@ -49,7 +49,7 @@ router.post('/organizations/add', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'User is not a sponsor' });
     }
 
-    // Check if this supervisor is already leading an organization
+    // Check if this sponsor is already leading an organization
     const [existingOrgRows] = await connection.execute(
       'SELECT ORG_ID FROM Organizations WHERE ORG_LEADER = ?',
       [ORG_LEADER]
@@ -57,7 +57,18 @@ router.post('/organizations/add', async (req, res) => {
 
     if (existingOrgRows.length > 0) {
       connection.release();
-      return res.status(400).json({ status: 'error', message: 'This supervisor is already leading an organization' });
+      return res.status(400).json({ status: 'error', message: 'This sponsor is already leading an organization' });
+    }
+
+    // Check if this sponsor is already assigned to any organization
+    const [userOrgRows] = await connection.execute(
+      'SELECT ORG_ID FROM Users WHERE USERNAME = ? AND ORG_ID IS NOT NULL',
+      [ORG_LEADER]
+    );
+
+    if (userOrgRows.length > 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'This sponsor is already assigned to an organization' });
     }
 
     // Get the next ORG_ID
