@@ -45,6 +45,9 @@ function LoginPage() {
         setMessageType('success');
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+        }
         const user = response.data.user;
         const redirectTo = location.state?.redirectTo
           || (user?.USER_TYPE === 'sponsor' ? '/sponsor'

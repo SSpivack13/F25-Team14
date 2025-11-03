@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { authHeaders } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import Banner from './Banner';
 
@@ -29,7 +30,7 @@ function NotificationsPage() {
 
     try {
       const payload = { notif_type: form.notif_type, notif_content: form.notif_content, recipients: recPayload };
-      const res = await axios.post(`${process.env.REACT_APP_API}/notifications/send`, payload);
+      const res = await axios.post(`${process.env.REACT_APP_API}/notifications/send`, payload, { headers: authHeaders() });
       if (res.data?.status === 'success') {
         setStatus({ type: 'success', message: `Sent to ${res.data.recipients} users` });
         setForm({ notif_type: '', notif_content: '' });

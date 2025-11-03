@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { authHeaders } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import Banner from './Banner';
 
@@ -28,7 +29,7 @@ function AdjustPointsPage() {
   const fetchById = async () => {
     if (!userIdInput) return;
     try {
-      const res = await fetch(`${process.env.REACT_APP_API}/users/${userIdInput}/points`);
+      const res = await fetch(`${process.env.REACT_APP_API}/users/${userIdInput}/points`, { headers: authHeaders() });
       const data = await res.json();
       if (data.status === 'success') {
         setTargetUser({ USER_ID: userIdInput, F_NAME: data.data.F_NAME, L_NAME: data.data.L_NAME, POINT_TOTAL: data.data.POINT_TOTAL });
@@ -49,7 +50,7 @@ function AdjustPointsPage() {
   const fetchByUsername = async () => {
     if (!usernameInput) return;
     try {
-      const res = await axios.get(`${process.env.REACT_APP_API}/users`);
+      const res = await axios.get(`${process.env.REACT_APP_API}/users`, { headers: authHeaders() });
       const users = res.data || [];
       const found = users.find(u => (u.USERNAME || '').toLowerCase() === usernameInput.trim().toLowerCase());
       if (found) {
@@ -77,7 +78,7 @@ function AdjustPointsPage() {
     }
     const newTotal = Number(targetUser.POINT_TOTAL || 0) + Number(delta);
     try {
-      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${targetUser.USER_ID}`, { POINT_TOTAL: newTotal });
+      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${targetUser.USER_ID}`, { POINT_TOTAL: newTotal }, { headers: authHeaders() });
       if (res.data?.status === 'success') {
         setTargetUser(prev => ({ ...prev, POINT_TOTAL: newTotal }));
         setMessage('Points updated successfully');

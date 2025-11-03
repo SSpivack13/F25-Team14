@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../db.js';
+import bcrypt from 'bcrypt';
 
 const router = express.Router();
 
@@ -26,10 +27,10 @@ router.post('/users/add', async (req, res) => {
     const [maxIdResult] = await connection.query('SELECT MAX(USER_ID) AS maxId FROM Users');
     const nextUserId = (maxIdResult[0].maxId || 0) + 1;
 
-    // Not permanent: Need to hash passwords before storing them in the database
+    const hashed = await bcrypt.hash(password, 10);
     const [result] = await connection.execute(
       'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, 0)',
-      [nextUserId, username, password, userType, f_name, l_name]
+      [nextUserId, username, hashed, userType, f_name, l_name]
     );
     connection.release();
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Banner from "./Banner";
 import { getCart, removeFromCart } from "./cartUtils";
 import axios from "axios";
+import { authHeaders } from "../utils/auth";
 
 function Cart() {
   const [cart, setCart] = useState({ products: [] });
@@ -46,7 +47,7 @@ function Cart() {
     localStorage.setItem("user", JSON.stringify(user));
 
     try {
-      await axios.put(`${process.env.REACT_APP_API}/updateUser/${user.USER_ID}`, { POINT_TOTAL: newPoints });
+      await axios.put(`${process.env.REACT_APP_API}/updateUser/${user.USER_ID}`, { POINT_TOTAL: newPoints }, { headers: authHeaders() });
       alert(`Checkout successful! Remaining points: ${newPoints}`);
       setCart({ products: [] });
       localStorage.removeItem(`user_cart_${user.USER_ID}`);

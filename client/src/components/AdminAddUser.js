@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { authHeaders } from '../utils/auth';
 
 function AdminAddUser() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ function AdminAddUser() {
         userType,
         f_name,
         l_name
-      });
+      }, { headers: authHeaders() });
       if (response.data.status === 'success') {
         const axios = require('axios');
         const user = { username: username, email: email, password: password };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { authHeaders } from '../utils/auth';
 import Banner from './Banner';
 
 function UpdateUser() {
@@ -10,7 +11,7 @@ function UpdateUser() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API}/users`);
+        const res = await axios.get(`${process.env.REACT_APP_API}/users`, { headers: authHeaders() });
         setUsers(res.data);
       } catch (err) {
         console.error(err);
@@ -35,7 +36,7 @@ function UpdateUser() {
     }
 
     try {
-      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, dataToSend);
+      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, dataToSend, { headers: authHeaders() });
       setMessage(res.data.message || 'User updated successfully!');
       setMessageType('success');
       const updatedUsers = users.map(u =>

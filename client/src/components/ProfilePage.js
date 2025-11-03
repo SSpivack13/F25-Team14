@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authHeaders } from '../utils/auth';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
 
@@ -39,7 +40,7 @@ function ProfilePage() {
 
     const fetchUserProfile = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/profile`);
+        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/profile`, { headers: authHeaders() });
         if (!response.ok) {
           throw new Error('Failed to fetch user profile');
         }
