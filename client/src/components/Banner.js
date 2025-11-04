@@ -79,6 +79,10 @@ function Banner() {
             <button onClick={goNotifications}>Notifications</button>
             {(() => {
               const user = JSON.parse(localStorage.getItem('user') || '{}');
+              return user?.USER_TYPE === 'admin' ? <button onClick={goOrganizations}>Organizations</button> : null;
+            })()}
+            {(() => {
+              const user = JSON.parse(localStorage.getItem('user') || '{}');
               return (user?.USER_TYPE === 'admin' || user?.USER_TYPE === 'sponsor') ? <button onClick={goPoints}>Points</button> : null;
             })()}
             {(() => {

@@ -151,4 +151,29 @@ router.get('/users/:userid/profile', async (req, res) => {
   }
 });
 
+// Get sponsors not assigned to any organization
+router.get('/users/unassigned-sponsors', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    // Get sponsors who are not in the UserOrganizations table
+    const [rows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME 
+      FROM Users u 
+      WHERE u.USER_TYPE = 'sponsor' 
+      AND u.USER_ID NOT IN (
+        SELECT DISTINCT USER_ID 
+        FROM UserOrganizations
+      )
+      ORDER BY u.USERNAME
+    `);
+    
+    connection.release();
+    res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('Error fetching unassigned sponsors:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch unassigned sponsors' });
+  }
+});
+
 export default router;

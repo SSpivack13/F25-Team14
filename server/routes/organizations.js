@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../db.js';
+import bcrypt from 'bcrypt';
 
 const router = express.Router();
 
@@ -148,6 +149,79 @@ router.get('/organizations/my-org/:userId', async (req, res) => {
   } catch (err) {
     console.error('Error fetching organization:', err);
     res.status(500).json({ status: 'error', message: 'Failed to fetch organization' });
+  }
+});
+
+// Delete organization (admin only with password confirmation)
+router.delete('/organizations/:orgId', async (req, res) => {
+  const { orgId } = req.params;
+  const { password, user } = req.body;
+
+  if (!user || user.USER_TYPE !== 'admin') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only admin can delete organizations' });
+  }
+
+  if (!password) {
+    return res.status(400).json({ status: 'error', message: 'Password is required' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Verify admin's password
+    const [adminRows] = await connection.execute(
+      'SELECT PASSWORD FROM Users WHERE USER_ID = ?',
+      [user.USER_ID]
+    );
+
+    if (adminRows.length === 0) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'Admin user not found' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, adminRows[0].PASSWORD);
+    if (!passwordMatch) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'Invalid password' });
+    }
+
+    // Check if organization exists
+    const [orgRows] = await connection.execute(
+      'SELECT ORG_ID FROM Organizations WHERE ORG_ID = ?',
+      [orgId]
+    );
+
+    if (orgRows.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'Organization not found' });
+    }
+
+    // Delete from UserOrganizations first (if table exists)
+    try {
+      await connection.execute(
+        'DELETE FROM UserOrganizations WHERE ORG_ID = ?',
+        [orgId]
+      );
+    } catch (err) {
+      // UserOrganizations table might not exist yet, continue
+    }
+
+    // Delete the organization
+    const [result] = await connection.execute(
+      'DELETE FROM Organizations WHERE ORG_ID = ?',
+      [orgId]
+    );
+
+    connection.release();
+
+    if (result.affectedRows > 0) {
+      res.json({ status: 'success', message: 'Organization deleted successfully' });
+    } else {
+      res.status(500).json({ status: 'error', message: 'Failed to delete organization' });
+    }
+  } catch (err) {
+    console.error('Error deleting organization:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to delete organization' });
   }
 });
 

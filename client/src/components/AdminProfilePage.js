@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { authHeaders } from '../utils/auth';
 import Banner from './Banner';
 
 function AdminProfilePage() {
@@ -23,7 +24,15 @@ function AdminProfilePage() {
     phone: '',
     emailNotifications: false
   });
+  const [newOrg, setNewOrg] = useState({ ORG_LEADER_ID: '', ORG_NAME: '' });
+  const [availableSponsors, setAvailableSponsors] = useState([]);
+  
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  
+  useEffect(() => {
+    fetchAvailableSponsors();
+  }, []);
+
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
@@ -99,6 +108,60 @@ function AdminProfilePage() {
       [field]: value
     }));
   };
+
+  const fetchAvailableSponsors = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/users/unassigned-sponsors`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setAvailableSponsors(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sponsors:', err);
+    }
+  };
+
+  const handleCreateOrg = async () => {
+    if (!newOrg.ORG_LEADER_ID || !newOrg.ORG_NAME) {
+      setMessage('Please select a sponsor and enter organization name');
+      setMessageType('error');
+      return;
+    }
+    
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/add`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({ 
+          ORG_LEADER_ID: newOrg.ORG_LEADER_ID, 
+          ORG_NAME: newOrg.ORG_NAME,
+          user 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage('Organization created successfully!');
+        setMessageType('success');
+        setNewOrg({ ORG_LEADER_ID: '', ORG_NAME: '' });
+        fetchAvailableSponsors(); // Refresh the list
+      } else {
+        setMessage(data.message || 'Failed to create organization');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
   return (
     <div>
       <Banner />
