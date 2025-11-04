@@ -8,11 +8,15 @@ function UpdateUser() {
   const [updates, setUpdates] = useState({});
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [drivers, setDrivers] = useState([]);
   useEffect(() => {
     async function fetchUsers() {
       try {
         const res = await axios.get(`${process.env.REACT_APP_API}/users`, { headers: authHeaders() });
         setUsers(res.data);
+        const  driver = await axios.get(`${process.env.REACT_APP_API}/drivers`);
+        setDrivers(driver.data);
+
       } catch (err) {
         console.error(err);
         setMessage('Error loading users.');
@@ -74,7 +78,6 @@ function UpdateUser() {
                 <th>Email</th>
                 <th>Username</th>
                 <th>Password</th>
-                <th>Points</th>
                 <th>Type</th>
                 <th>Org</th>
                 <th>Actions</th>
@@ -82,7 +85,7 @@ function UpdateUser() {
             </thead>
             <tbody>
               {users.map((user) => {
-                const fields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID'];
+                const fields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'USER_TYPE', 'ORG_ID'];
                 return (
                   <tr key={user.USER_ID}>
                     <td>{user.USER_ID}</td>
