@@ -7,6 +7,10 @@ import '../Template.css';
 
 function Organizations() {
   const [organizations, setOrganizations] = useState([]);
+  const [myOrganization, setMyOrganization] = useState(null);
+  const [drivers, setDrivers] = useState([]);
+  const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [newOrg, setNewOrg] = useState({ ORG_LEADER_ID: '', ORG_NAME: '' });
   const [availableSponsors, setAvailableSponsors] = useState([]);
   const [message, setMessage] = useState('');
@@ -15,6 +19,12 @@ function Organizations() {
   const [deleteOrgId, setDeleteOrgId] = useState(null);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [showRemoveDriverModal, setShowRemoveDriverModal] = useState(false);
+  const [removeDriverId, setRemoveDriverId] = useState(null);
+  const [showAdjustPointsModal, setShowAdjustPointsModal] = useState(false);
+  const [adjustPointsDriverId, setAdjustPointsDriverId] = useState(null);
+  const [adjustPointsDriverName, setAdjustPointsDriverName] = useState('');
+  const [pointsDelta, setPointsDelta] = useState(0);
   const navigate = useNavigate();
   
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -24,6 +34,9 @@ function Organizations() {
     if (user?.USER_TYPE === 'admin') {
       fetchOrganizations();
       fetchAvailableSponsors();
+    } else if (user?.USER_TYPE === 'sponsor') {
+      fetchMyOrganization();
+      fetchAvailableDrivers();
     }
   }, []);
 
@@ -87,6 +100,10 @@ function Organizations() {
         setNewOrg({ ORG_LEADER_ID: '', ORG_NAME: '' });
         fetchAvailableSponsors();
         fetchOrganizations();
+        // Clear message after 2 seconds and refresh page
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
       } else {
         setMessage(data.message || 'Failed to create organization');
         setMessageType('error');
@@ -147,12 +164,171 @@ function Organizations() {
     setDeleteError('');
   };
 
+  const fetchMyOrganization = async () => {
+    console.log('Fetching organization for user:', user.USER_ID);
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/my-org/${user.USER_ID}`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      console.log('Organization API response:', data);
+      if (data.status === 'success') {
+        setMyOrganization(data.data.organization);
+        setDrivers(data.data.drivers);
+      } else {
+        console.log('No organization found for user');
+      }
+    } catch (err) {
+      console.error('Failed to fetch organization:', err);
+    }
+  };
+
+  const fetchAvailableDrivers = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/users/all-drivers`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setAvailableDrivers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch drivers:', err);
+    }
+  };
+
+  const handleAddDriver = async () => {
+    if (!selectedDriverId) {
+      setMessage('Please select a driver');
+      setMessageType('error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/add-driver`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({
+          driverId: selectedDriverId,
+          user
+        })
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage('Driver added successfully!');
+        setMessageType('success');
+        setSelectedDriverId('');
+        fetchMyOrganization();
+        fetchAvailableDrivers();
+      } else {
+        setMessage(data.message || 'Failed to add driver');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
+  const handleRemoveDriverClick = (driverId) => {
+    setRemoveDriverId(driverId);
+    setShowRemoveDriverModal(true);
+  };
+
+  const handleRemoveDriverConfirm = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/remove-driver/${removeDriverId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({ user })
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage('Driver removed successfully!');
+        setMessageType('success');
+        setShowRemoveDriverModal(false);
+        fetchMyOrganization();
+        fetchAvailableDrivers();
+      } else {
+        setMessage(data.message || 'Failed to remove driver');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
+  const handleAdjustPointsClick = (driver) => {
+    setAdjustPointsDriverId(driver.USER_ID);
+    setAdjustPointsDriverName(`${driver.F_NAME} ${driver.L_NAME}`);
+    setPointsDelta(0);
+    setShowAdjustPointsModal(true);
+  };
+
+  const handleAdjustPointsConfirm = async () => {
+    if (!adjustPointsDriverId || pointsDelta === 0) {
+      setMessage('Please enter a point value to adjust');
+      setMessageType('error');
+      return;
+    }
+
+    try {
+      // Get current driver points
+      const driver = drivers.find(d => d.USER_ID === adjustPointsDriverId);
+      const newTotal = Number(driver.POINT_TOTAL || 0) + Number(pointsDelta);
+
+      const response = await fetch(`${process.env.REACT_APP_API}/updateUser/${adjustPointsDriverId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({
+          POINT_TOTAL: newTotal
+        })
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage(`Points adjusted successfully! ${pointsDelta > 0 ? 'Added' : 'Removed'} ${Math.abs(pointsDelta)} points.`);
+        setMessageType('success');
+        setShowAdjustPointsModal(false);
+        fetchMyOrganization(); // Refresh to show updated points
+      } else {
+        setMessage(data.message || 'Failed to adjust points');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
+  const handleAdjustPointsCancel = () => {
+    setShowAdjustPointsModal(false);
+    setAdjustPointsDriverId(null);
+    setAdjustPointsDriverName('');
+    setPointsDelta(0);
+  };
+
   return (
     <div>
       <Banner />
       <div className="template-content">
         <div className="template-card">
-          <h1>Organizations</h1>
+          <h1>{user?.USER_TYPE === 'sponsor' ? 'My Organization' : 'Organizations'}</h1>
           
           {user?.USER_TYPE === 'admin' && (
             <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
@@ -195,27 +371,107 @@ function Organizations() {
             </div>
           )}
 
-          <div>
-            <h3>All Organizations</h3>
-            {organizations.length > 0 ? (
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>ID</th>
-                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Name</th>
-                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Leader ID</th>
-                    {user?.USER_TYPE === 'admin' && (
-                      <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Actions</th>
+          {user?.USER_TYPE === 'sponsor' && (
+            <div>
+              {message && (
+                <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
+                  {message}
+                </div>
+              )}
+              
+              {myOrganization ? (
+                <div>
+                  <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <h3>Organization Details</h3>
+                    <p><strong>Name:</strong> {myOrganization.ORG_NAME}</p>
+                    <p><strong>Organization ID:</strong> {myOrganization.ORG_ID}</p>
+                  </div>
+
+                  <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <h3>Add Driver</h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <select 
+                        value={selectedDriverId} 
+                        onChange={(e) => setSelectedDriverId(e.target.value)}
+                        style={{ padding: '4px' }}
+                      >
+                        <option value="">-- Select a driver --</option>
+                        {availableDrivers.map(driver => (
+                          <option key={driver.USER_ID} value={driver.USER_ID}>
+                            {driver.USERNAME} ({driver.F_NAME} {driver.L_NAME})
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={handleAddDriver}>Add Driver</button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3>Drivers in Organization</h3>
+                    {drivers.length > 0 ? (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Username</th>
+                            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Name</th>
+                            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Points</th>
+                            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {drivers.map(driver => (
+                            <tr key={driver.USER_ID}>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{driver.USERNAME}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{driver.F_NAME} {driver.L_NAME}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{driver.POINT_TOTAL}</td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
+                                <button 
+                                  onClick={() => handleAdjustPointsClick(driver)}
+                                  style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', marginRight: '8px' }}
+                                >
+                                  Adjust Points
+                                </button>
+                                <button 
+                                  onClick={() => handleRemoveDriverClick(driver.USER_ID)}
+                                  style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p>No drivers in organization.</p>
                     )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {organizations.map(org => (
-                    <tr key={org.ORG_ID}>
-                      <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_ID}</td>
-                      <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_NAME}</td>
-                      <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_LEADER_ID}</td>
-                      {user?.USER_TYPE === 'admin' && (
+                  </div>
+                </div>
+              ) : (
+                <p>You are not assigned to any organization.</p>
+              )}
+            </div>
+          )}
+
+          {user?.USER_TYPE === 'admin' && (
+            <div>
+              <h3>All Organizations</h3>
+              {organizations.length > 0 ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>ID</th>
+                      <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Name</th>
+                      <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Leader ID</th>
+                      <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left', padding: '8px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {organizations.map(org => (
+                      <tr key={org.ORG_ID}>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_ID}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_NAME}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_LEADER_ID}</td>
                         <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
                           <button 
                             onClick={() => handleDeleteClick(org.ORG_ID)}
@@ -224,17 +480,59 @@ function Organizations() {
                             Delete
                           </button>
                         </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No organizations found.</p>
-            )}
-          </div>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p>No organizations found.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Remove Driver Confirmation Modal */}
+      {showRemoveDriverModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            minWidth: '300px',
+            maxWidth: '500px'
+          }}>
+            <h3>Confirm Remove Driver</h3>
+            <p>Are you sure you want to remove this driver from the organization?</p>
+            
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setShowRemoveDriverModal(false)}
+                style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleRemoveDriverConfirm}
+                style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#dc3545', color: 'white' }}
+              >
+                Remove Driver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
@@ -287,6 +585,59 @@ function Organizations() {
                 style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#dc3545', color: 'white' }}
               >
                 Delete Organization
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Points Modal */}
+      {showAdjustPointsModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            minWidth: '400px',
+            maxWidth: '500px'
+          }}>
+            <h3>Adjust Points for {adjustPointsDriverName}</h3>
+            <p>Enter the number of points to add or subtract:</p>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '8px' }}>Points to adjust (use negative numbers to subtract):</label>
+              <input
+                type="number"
+                value={pointsDelta}
+                onChange={(e) => setPointsDelta(e.target.value)}
+                placeholder="Enter points (e.g., 100 or -50)"
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={handleAdjustPointsCancel}
+                style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleAdjustPointsConfirm}
+                style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#28a745', color: 'white' }}
+              >
+                Adjust Points
               </button>
             </div>
           </div>

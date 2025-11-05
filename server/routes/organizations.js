@@ -19,28 +19,32 @@ router.get('/organizations', async (req, res) => {
 
 // Add organization (admin only)
 router.post('/organizations/add', async (req, res) => {
-  const { ORG_LEADER, user } = req.body;
+  const { ORG_LEADER_ID, ORG_NAME, user } = req.body;
 
   if (!user || user.USER_TYPE !== 'admin') {
     return res.status(403).json({ status: 'error', message: 'Forbidden: only admin can create organizations' });
   }
 
-  if (!ORG_LEADER) {
-    return res.status(400).json({ status: 'error', message: 'Organization leader username is required' });
+  if (!ORG_LEADER_ID) {
+    return res.status(400).json({ status: 'error', message: 'Organization leader is required' });
+  }
+
+  if (!ORG_NAME) {
+    return res.status(400).json({ status: 'error', message: 'Organization name is required' });
   }
 
   try {
     const connection = await pool.getConnection();
 
-    // Check if the username exists and is a supervisor
+    // Check if the user ID exists and is a sponsor
     const [userRows] = await connection.execute(
-      'SELECT USER_ID, USERNAME, USER_TYPE FROM Users WHERE USERNAME = ?',
-      [ORG_LEADER]
+      'SELECT USER_ID, USERNAME, USER_TYPE FROM Users WHERE USER_ID = ?',
+      [ORG_LEADER_ID]
     );
 
     if (userRows.length === 0) {
       connection.release();
-      return res.status(400).json({ status: 'error', message: 'Username not found' });
+      return res.status(400).json({ status: 'error', message: 'User not found' });
     }
 
     const supervisorUser = userRows[0];
@@ -52,24 +56,13 @@ router.post('/organizations/add', async (req, res) => {
 
     // Check if this sponsor is already leading an organization
     const [existingOrgRows] = await connection.execute(
-      'SELECT ORG_ID FROM Organizations WHERE ORG_LEADER = ?',
-      [ORG_LEADER]
+      'SELECT ORG_ID FROM Organizations WHERE ORG_LEADER_ID = ?',
+      [ORG_LEADER_ID]
     );
 
     if (existingOrgRows.length > 0) {
       connection.release();
       return res.status(400).json({ status: 'error', message: 'This sponsor is already leading an organization' });
-    }
-
-    // Check if this sponsor is already assigned to any organization
-    const [userOrgRows] = await connection.execute(
-      'SELECT ORG_ID FROM Users WHERE USERNAME = ? AND ORG_ID IS NOT NULL',
-      [ORG_LEADER]
-    );
-
-    if (userOrgRows.length > 0) {
-      connection.release();
-      return res.status(400).json({ status: 'error', message: 'This sponsor is already assigned to an organization' });
     }
 
     // Get the next ORG_ID
@@ -78,14 +71,14 @@ router.post('/organizations/add', async (req, res) => {
 
     // Insert new organization
     const [result] = await connection.execute(
-      'INSERT INTO Organizations (ORG_ID, ORG_LEADER) VALUES (?, ?)',
-      [nextOrgId, ORG_LEADER]
+      'INSERT INTO Organizations (ORG_ID, ORG_LEADER_ID, ORG_NAME) VALUES (?, ?, ?)',
+      [nextOrgId, ORG_LEADER_ID, ORG_NAME]
     );
 
-    // Update the supervisor's ORG_ID to assign them to this organization
+    // Add the supervisor to the organization via UserOrganizations table
     await connection.execute(
-      'UPDATE Users SET ORG_ID = ? WHERE USER_ID = ?',
-      [nextOrgId, supervisorUser.USER_ID]
+      'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
+      [supervisorUser.USER_ID, nextOrgId]
     );
 
     connection.release();
@@ -101,54 +94,155 @@ router.post('/organizations/add', async (req, res) => {
   }
 });
 
-// Get organization details by user's ORG_ID
+// Get organization details for sponsor
 router.get('/organizations/my-org/:userId', async (req, res) => {
   const { userId } = req.params;
 
   try {
     const connection = await pool.getConnection();
     
-    // Get organization ID for user
-    const [userRows] = await connection.execute(
-      'SELECT ORG_ID FROM Users WHERE USER_ID = ?',
-      [userId]
-    );
+    // Check if user is a sponsor and get their organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID
+      FROM Organizations o
+      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+      WHERE uo.USER_ID = ?
+    `, [userId]);
 
-    if (userRows.length === 0 || !userRows[0].ORG_ID) {
+    if (sponsorOrgRows.length === 0) {
       connection.release();
       return res.status(404).json({ status: 'error', message: 'User not assigned to any organization' });
     }
 
-    const orgId = userRows[0].ORG_ID;
+    const org = sponsorOrgRows[0];
 
-    // Get organization details
-    const [orgRows] = await connection.execute(
-      'SELECT * FROM Organizations WHERE ORG_ID = ?',
-      [orgId]
+    // Get all drivers in this organization
+    const [driverRows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, u.POINT_TOTAL
+      FROM Users u
+      INNER JOIN UserOrganizations uo ON u.USER_ID = uo.USER_ID
+      WHERE uo.ORG_ID = ? AND u.USER_TYPE = 'driver'
+      ORDER BY u.USERNAME
+    `, [org.ORG_ID]);
+
+    connection.release();
+
+    res.json({ 
+      status: 'success', 
+      data: {
+        organization: org,
+        drivers: driverRows
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching organization details:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch organization details' });
+  }
+});
+
+// Add driver to organization (sponsor only)
+router.post('/organizations/add-driver', async (req, res) => {
+  const { driverId, user } = req.body;
+
+  if (!user || user.USER_TYPE !== 'sponsor') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can add drivers' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get sponsor's organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT uo.ORG_ID
+      FROM UserOrganizations uo
+      WHERE uo.USER_ID = ?
+    `, [user.USER_ID]);
+
+    if (sponsorOrgRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    }
+
+    const orgId = sponsorOrgRows[0].ORG_ID;
+
+    // Check if driver exists and is actually a driver
+    const [driverRows] = await connection.execute(
+      'SELECT USER_ID, USER_TYPE FROM Users WHERE USER_ID = ? AND USER_TYPE = ?',
+      [driverId, 'driver']
     );
 
-    // Get all members of this organization
-    const [memberRows] = await connection.execute(
-      'SELECT USER_ID, USERNAME, F_NAME, L_NAME, USER_TYPE FROM Users WHERE ORG_ID = ?',
-      [orgId]
+    if (driverRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Driver not found' });
+    }
+
+    // Check if driver is already in THIS organization
+    const [existingRows] = await connection.execute(
+      'SELECT ORG_ID FROM UserOrganizations WHERE USER_ID = ? AND ORG_ID = ?',
+      [driverId, orgId]
+    );
+
+    if (existingRows.length > 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Driver is already in this organization' });
+    }
+
+    // Add driver to organization
+    await connection.execute(
+      'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
+      [driverId, orgId]
+    );
+
+    connection.release();
+    res.json({ status: 'success', message: 'Driver added to organization successfully' });
+  } catch (err) {
+    console.error('Error adding driver to organization:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to add driver to organization' });
+  }
+});
+
+// Remove driver from organization (sponsor only)
+router.delete('/organizations/remove-driver/:driverId', async (req, res) => {
+  const { driverId } = req.params;
+  const { user } = req.body;
+
+  if (!user || user.USER_TYPE !== 'sponsor') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can remove drivers' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get sponsor's organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT uo.ORG_ID
+      FROM UserOrganizations uo
+      WHERE uo.USER_ID = ?
+    `, [user.USER_ID]);
+
+    if (sponsorOrgRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    }
+
+    const orgId = sponsorOrgRows[0].ORG_ID;
+
+    // Remove driver from organization
+    const [result] = await connection.execute(
+      'DELETE FROM UserOrganizations WHERE USER_ID = ? AND ORG_ID = ?',
+      [driverId, orgId]
     );
 
     connection.release();
 
-    if (orgRows.length > 0) {
-      res.json({ 
-        status: 'success', 
-        data: {
-          organization: orgRows[0],
-          members: memberRows
-        }
-      });
+    if (result.affectedRows > 0) {
+      res.json({ status: 'success', message: 'Driver removed from organization successfully' });
     } else {
-      res.status(404).json({ status: 'error', message: 'Organization not found' });
+      res.status(404).json({ status: 'error', message: 'Driver not found in organization' });
     }
   } catch (err) {
-    console.error('Error fetching organization:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to fetch organization' });
+    console.error('Error removing driver from organization:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to remove driver from organization' });
   }
 });
 

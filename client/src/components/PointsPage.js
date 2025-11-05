@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authHeaders } from '../utils/auth';
 import Banner from './Banner';
 
 function PointsPage() {
@@ -25,7 +26,9 @@ function PointsPage() {
 
   const fetchRules = async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API}/pointrules`);
+      const res = await fetch(`${process.env.REACT_APP_API}/pointrules`, {
+        headers: authHeaders()
+      });
       const data = await res.json();
       if (data.status === 'success') setRules(data.data || []);
     } catch (err) {
@@ -37,7 +40,14 @@ function PointsPage() {
     if (!newRule.RULE_TYPE || newRule.PT_CHANGE === '') return;
     try {
       const payload = { ORG_ID: newRule.ORG_ID || null, RULE_TYPE: newRule.RULE_TYPE, PT_CHANGE: Number(newRule.PT_CHANGE), user };
-      const res = await fetch(`${process.env.REACT_APP_API}/pointrules/add`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(`${process.env.REACT_APP_API}/pointrules/add`, { 
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        }, 
+        body: JSON.stringify(payload) 
+      });
       const data = await res.json();
       if (data.status === 'success') {
         setNewRule({ ORG_ID: '', RULE_TYPE: '', PT_CHANGE: 0 });

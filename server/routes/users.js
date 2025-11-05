@@ -156,11 +156,16 @@ router.get('/users/unassigned-sponsors', async (req, res) => {
   try {
     const connection = await pool.getConnection();
     
-    // Get sponsors who are not in the UserOrganizations table
+    // Get sponsors who are not leading any organization AND not in UserOrganizations table
     const [rows] = await connection.execute(`
       SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME 
       FROM Users u 
       WHERE u.USER_TYPE = 'sponsor' 
+      AND u.USER_ID NOT IN (
+        SELECT DISTINCT ORG_LEADER_ID 
+        FROM Organizations 
+        WHERE ORG_LEADER_ID IS NOT NULL
+      )
       AND u.USER_ID NOT IN (
         SELECT DISTINCT USER_ID 
         FROM UserOrganizations
@@ -173,6 +178,50 @@ router.get('/users/unassigned-sponsors', async (req, res) => {
   } catch (err) {
     console.error('Error fetching unassigned sponsors:', err);
     res.status(500).json({ status: 'error', message: 'Failed to fetch unassigned sponsors' });
+  }
+});
+
+// Get drivers not assigned to any organization
+router.get('/users/unassigned-drivers', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    const [rows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, u.POINT_TOTAL
+      FROM Users u 
+      WHERE u.USER_TYPE = 'driver' 
+      AND u.USER_ID NOT IN (
+        SELECT DISTINCT USER_ID 
+        FROM UserOrganizations
+      )
+      ORDER BY u.USERNAME
+    `);
+    
+    connection.release();
+    res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('Error fetching unassigned drivers:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch unassigned drivers' });
+  }
+});
+
+// Get all drivers (not just unassigned ones)
+router.get('/users/all-drivers', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    const [rows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, u.POINT_TOTAL
+      FROM Users u 
+      WHERE u.USER_TYPE = 'driver'
+      ORDER BY u.USERNAME
+    `);
+    
+    connection.release();
+    res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('Error fetching all drivers:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch drivers' });
   }
 });
 

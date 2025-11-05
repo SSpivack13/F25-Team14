@@ -87,7 +87,8 @@ function Banner() {
             })()}
             {(() => {
               const user = JSON.parse(localStorage.getItem('user') || '{}');
-              return user?.ORG_ID ? <button onClick={goOrganizations}>My Organization</button> : null;
+              // Show "My Organization" for sponsors who are in an organization OR users with ORG_ID
+              return (user?.USER_TYPE === 'sponsor' || user?.ORG_ID) ? <button onClick={goOrganizations}>My Organization</button> : null;
             })()}
             <button onClick={handleLogout}>Logout</button>
           </>
