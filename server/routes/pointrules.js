@@ -3,85 +3,193 @@ import pool from '../db.js';
 
 const router = express.Router();
 
-// Get point rules (optionally filter by org_id)
+// Helper: get user's role and org ids from Users and UserOrganizations tables
+async function getUserInfo(connection, userId) {
+  const [uRows] = await connection.execute('SELECT USER_TYPE FROM Users WHERE USER_ID = ?', [userId]);
+  if (uRows.length === 0) return null;
+  const userInfo = uRows[0];
+
+  // Get user's organizations from UserOrganizations table
+  let orgIds = [];
+  try {
+    const [uoRows] = await connection.execute('SELECT ORG_ID FROM UserOrganizations WHERE USER_ID = ?', [userId]);
+    if (uoRows && uoRows.length > 0) {
+      orgIds = uoRows.map(r => r.ORG_ID);
+    }
+  } catch (err) {
+    console.error('Error querying UserOrganizations:', err);
+    // Table might not exist or other DB error; return empty list
+  }
+
+  return { USER_TYPE: userInfo.USER_TYPE, orgIds };
+}
+
+// Get point rules
 router.get('/pointrules', async (req, res) => {
-  const { org_id } = req.query;
   try {
     const connection = await pool.getConnection();
-    let rows;
-    if (org_id) {
-      const [r] = await connection.execute('SELECT RULE_ID, ORG_ID, RULE_TYPE, PT_CHANGE FROM PointRules WHERE ORG_ID = ?', [org_id]);
-      rows = r;
-    } else {
-      const [r] = await connection.query('SELECT RULE_ID, ORG_ID, RULE_TYPE, PT_CHANGE FROM PointRules');
-      rows = r;
+
+    // req.userId is set by verifyToken middleware
+    const userId = req.userId;
+    if (!userId) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
+
+    const userInfo = await getUserInfo(connection, userId);
+    if (!userInfo) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'User not found' });
+    }
+
+    // If sponsor, only return rules for their organizations
+    if (userInfo.USER_TYPE === 'sponsor') {
+      if (!userInfo.orgIds || userInfo.orgIds.length === 0) {
+        connection.release();
+        return res.json({ status: 'success', data: [] });
+      }
+      const placeholders = userInfo.orgIds.map(() => '?').join(',');
+      const sql = `SELECT RULE_ID, ORG_ID, RULE_TYPE, PT_CHANGE FROM PointRules WHERE ORG_ID IN (${placeholders})`;
+      const [rows] = await connection.execute(sql, userInfo.orgIds);
+      connection.release();
+      return res.json({ status: 'success', data: rows });
+    }
+
+    // Admin or other users: allow optional org_id filter
+    const { org_id } = req.query;
+    if (org_id) {
+      let orgIds = org_id;
+      if (Array.isArray(orgIds)) {
+        orgIds = orgIds;
+      } else if (typeof orgIds === 'string' && orgIds.includes(',')) {
+        orgIds = orgIds.split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        orgIds = [orgIds];
+      }
+      const placeholders = orgIds.map(() => '?').join(',');
+      const sql = `SELECT RULE_ID, ORG_ID, RULE_TYPE, PT_CHANGE FROM PointRules WHERE ORG_ID IN (${placeholders})`;
+      const [rows] = await connection.execute(sql, orgIds);
+      connection.release();
+      return res.json({ status: 'success', data: rows });
+    }
+
+    const [rows] = await connection.query('SELECT RULE_ID, ORG_ID, RULE_TYPE, PT_CHANGE FROM PointRules');
     connection.release();
-    res.json({ status: 'success', data: rows });
+    return res.json({ status: 'success', data: rows });
   } catch (err) {
     console.error('Error fetching point rules:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to fetch point rules' });
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch point rules' });
   }
 });
 
-// Add a point rule. Expect body: { ORG_ID, RULE_TYPE, PT_CHANGE, user }
-// user should contain USER_TYPE to authorize (admin or sponsor)
+// Add a point rule. Body: { ORG_ID, RULE_TYPE, PT_CHANGE }
 router.post('/pointrules/add', async (req, res) => {
-  const { ORG_ID, RULE_TYPE, PT_CHANGE, user } = req.body;
-  if (!user || !user.USER_TYPE) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized: user info required' });
-  }
-  const role = user.USER_TYPE;
-  if (!(role === 'admin' || role === 'sponsor')) {
-    return res.status(403).json({ status: 'error', message: 'Forbidden: only admin or sponsor can add point rules' });
-  }
-  if (!RULE_TYPE || PT_CHANGE === undefined || PT_CHANGE === null) {
-    return res.status(400).json({ status: 'error', message: 'RULE_TYPE and PT_CHANGE are required' });
-  }
-
+  const { ORG_ID: requestedOrgId, RULE_TYPE, PT_CHANGE } = req.body;
   try {
     const connection = await pool.getConnection();
-    // If RULE_ID is auto-increment in DB, let DB set it. Insert ORG_ID (nullable) if provided.
+    const userId = req.userId;
+    if (!userId) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const userInfo = await getUserInfo(connection, userId);
+    if (!userInfo) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'User not found' });
+    }
+
+    const role = userInfo.USER_TYPE;
+    if (!(role === 'admin' || role === 'sponsor')) {
+      connection.release();
+      return res.status(403).json({ status: 'error', message: 'Forbidden: only admin or sponsor can add point rules' });
+    }
+
+    if (!RULE_TYPE || PT_CHANGE === undefined || PT_CHANGE === null) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'RULE_TYPE and PT_CHANGE are required' });
+    }
+
+    // Determine final ORG_ID
+    let finalOrgId = null;
+    if (role === 'sponsor') {
+      if (!userInfo.orgIds || userInfo.orgIds.length === 0) {
+        connection.release();
+        return res.status(403).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+      }
+      if (requestedOrgId) {
+        // ensure sponsor is adding for one of their orgs
+        if (!userInfo.orgIds.map(String).includes(String(requestedOrgId))) {
+          connection.release();
+          return res.status(403).json({ status: 'error', message: 'Forbidden: cannot add rule for this organization' });
+        }
+        finalOrgId = requestedOrgId;
+      } else {
+        finalOrgId = userInfo.orgIds[0];
+      }
+    } else {
+      // admin
+      finalOrgId = requestedOrgId || null;
+    }
+
     const [result] = await connection.execute(
       'INSERT INTO PointRules (ORG_ID, RULE_TYPE, PT_CHANGE) VALUES (?, ?, ?)',
-      [ORG_ID || null, RULE_TYPE, PT_CHANGE]
+      [finalOrgId || null, RULE_TYPE, PT_CHANGE]
     );
     connection.release();
+
     if (result.affectedRows > 0) {
-      res.status(201).json({ status: 'success', message: 'Point rule added', id: result.insertId });
-    } else {
-      res.status(500).json({ status: 'error', message: 'Failed to add point rule' });
+      return res.status(201).json({ status: 'success', message: 'Point rule added', id: result.insertId });
     }
+    return res.status(500).json({ status: 'error', message: 'Failed to add point rule' });
   } catch (err) {
     console.error('Error adding point rule:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to add point rule' });
+    return res.status(500).json({ status: 'error', message: 'Failed to add point rule' });
   }
 });
 
 // Delete a point rule by RULE_ID
 router.delete('/pointrules/:ruleId', async (req, res) => {
   const { ruleId } = req.params;
-  const { user } = req.body || {};
-  if (!user || !user.USER_TYPE) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized: user info required' });
-  }
-  const role = user.USER_TYPE;
-  if (!(role === 'admin' || role === 'sponsor')) {
-    return res.status(403).json({ status: 'error', message: 'Forbidden: only admin or sponsor can delete point rules' });
-  }
-
   try {
     const connection = await pool.getConnection();
+    const userId = req.userId;
+    if (!userId) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const userInfo = await getUserInfo(connection, userId);
+    if (!userInfo) {
+      connection.release();
+      return res.status(401).json({ status: 'error', message: 'User not found' });
+    }
+
+    const role = userInfo.USER_TYPE;
+
+    const [ruleRows] = await connection.execute('SELECT ORG_ID FROM PointRules WHERE RULE_ID = ?', [ruleId]);
+    if (ruleRows.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'Point rule not found' });
+    }
+    const rule = ruleRows[0];
+
+    if (role === 'sponsor') {
+      if (!userInfo.orgIds || !userInfo.orgIds.map(String).includes(String(rule.ORG_ID))) {
+        connection.release();
+        return res.status(403).json({ status: 'error', message: 'Forbidden: cannot delete this rule' });
+      }
+    }
+
     const [result] = await connection.execute('DELETE FROM PointRules WHERE RULE_ID = ?', [ruleId]);
     connection.release();
     if (result.affectedRows > 0) {
-      res.json({ status: 'success', message: 'Point rule deleted' });
-    } else {
-      res.status(404).json({ status: 'error', message: 'Point rule not found' });
+      return res.json({ status: 'success', message: 'Point rule deleted' });
     }
+    return res.status(500).json({ status: 'error', message: 'Failed to delete point rule' });
   } catch (err) {
     console.error('Error deleting point rule:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to delete point rule' });
+    return res.status(500).json({ status: 'error', message: 'Failed to delete point rule' });
   }
 });
 
