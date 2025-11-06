@@ -181,4 +181,24 @@ router.get('/users/unassigned-sponsors', async (req, res) => {
   }
 });
 
+// Get all drivers (not just unassigned ones)
+router.get('/users/all-drivers', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    const [rows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, u.POINT_TOTAL
+      FROM Users u 
+      WHERE u.USER_TYPE = 'driver'
+      ORDER BY u.USERNAME
+    `);
+    
+    connection.release();
+    res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('Error fetching all drivers:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch drivers' });
+  }
+});
+
 export default router;
