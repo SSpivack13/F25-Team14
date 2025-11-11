@@ -1,6 +1,8 @@
 import express from 'express';
 import pool from '../db.js';
 import bcrypt from 'bcrypt';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -316,6 +318,74 @@ router.delete('/organizations/:orgId', async (req, res) => {
   } catch (err) {
     console.error('Error deleting organization:', err);
     res.status(500).json({ status: 'error', message: 'Failed to delete organization' });
+  }
+});
+
+// Send driver invitation email (sponsor only)
+router.post('/organizations/invite-driver', async (req, res) => {
+  const { email, user } = req.body;
+
+  if (!user || user.USER_TYPE !== 'sponsor') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can invite drivers' });
+  }
+
+  if (!email) {
+    return res.status(400).json({ status: 'error', message: 'Email is required' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get sponsor's organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT o.ORG_ID, o.ORG_NAME
+      FROM Organizations o
+      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+      WHERE uo.USER_ID = ?
+    `, [user.USER_ID]);
+
+    if (sponsorOrgRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    }
+
+    const org = sponsorOrgRows[0];
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+
+    // Store invitation
+    await connection.execute(
+      'INSERT INTO DriverInvitations (EMAIL, ORG_ID, INVITE_TOKEN, INVITED_BY, CREATED_AT) VALUES (?, ?, ?, ?, NOW())',
+      [email, org.ORG_ID, inviteToken, user.USER_ID]
+    );
+
+    // Send email
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail', // or your email service
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const inviteUrl = `${process.env.CLIENT_URL}/register?invite=${inviteToken}`;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: `Invitation to join ${org.ORG_NAME}`,
+      html: `
+        <h2>You're invited to join ${org.ORG_NAME}!</h2>
+        <p>You've been invited to join our driver program.</p>
+        <p><a href="${inviteUrl}">Click here to sign up</a></p>
+        <p>If the link doesn't work, copy and paste this URL: ${inviteUrl}</p>
+      `
+    });
+
+    connection.release();
+    res.json({ status: 'success', message: 'Invitation sent successfully' });
+  } catch (err) {
+    console.error('Error sending invitation:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to send invitation' });
   }
 });
 

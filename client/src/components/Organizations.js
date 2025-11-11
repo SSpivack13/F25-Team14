@@ -25,6 +25,7 @@ function Organizations() {
   const [adjustPointsDriverId, setAdjustPointsDriverId] = useState(null);
   const [adjustPointsDriverName, setAdjustPointsDriverName] = useState('');
   const [pointsDelta, setPointsDelta] = useState(0);
+  const [inviteEmail, setInviteEmail] = useState('');
   const navigate = useNavigate();
   
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -323,6 +324,42 @@ function Organizations() {
     setPointsDelta(0);
   };
 
+  const handleSendInvite = async () => {
+    if (!inviteEmail) {
+      setMessage('Please enter an email address');
+      setMessageType('error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/invite-driver`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({
+          email: inviteEmail,
+          user
+        })
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage('Invitation sent successfully!');
+        setMessageType('success');
+        setInviteEmail('');
+      } else {
+        setMessage(data.message || 'Failed to send invitation');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
   return (
     <div>
       <Banner />
@@ -403,6 +440,20 @@ function Organizations() {
                         ))}
                       </select>
                       <button onClick={handleAddDriver}>Add Driver</button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <h3>Invite New Driver</h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="email"
+                        placeholder="Enter driver's email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        style={{ padding: '4px', flex: 1 }}
+                      />
+                      <button onClick={handleSendInvite}>Send Invitation</button>
                     </div>
                   </div>
 
