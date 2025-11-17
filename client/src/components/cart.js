@@ -42,6 +42,13 @@ function Cart() {
   }, 0);
 
   const checkout = async () => {
+    if (user.USER_TYPE === 'admin' || user.USER_TYPE === 'sponsor') {
+      
+      setCart({ products: [] });
+      localStorage.removeItem(`user_cart_${user.USER_ID}`);
+    }else if (totalPoints > (user.POINT_TOTAL || 0)) {
+      alert("Insufficient Point Balance.");
+    } else {
     const newPoints = (user.POINT_TOTAL || 0) - totalPoints;
     user.POINT_TOTAL = newPoints;
     localStorage.setItem("user", JSON.stringify(user));
@@ -55,6 +62,7 @@ function Cart() {
       console.error(err);
       alert("Checkout failed");
     }
+  }
   };
 
   const totalItems = cart.products.reduce((sum, p) => sum + (p.quantity || 0), 0);

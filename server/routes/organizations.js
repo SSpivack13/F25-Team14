@@ -103,9 +103,9 @@ router.get('/organizations/my-org/:userId', async (req, res) => {
   try {
     const connection = await pool.getConnection();
     
-    // Check if user is a sponsor and get their organization
+    // Check if user is a sponsor and get their organization (including product selections)
     const [sponsorOrgRows] = await connection.execute(`
-      SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID
+      SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID, o.product1, o.product2, o.product3, o.product4, o.product5
       FROM Organizations o
       INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
       WHERE uo.USER_ID = ?
@@ -139,6 +139,121 @@ router.get('/organizations/my-org/:userId', async (req, res) => {
   } catch (err) {
     console.error('Error fetching organization details:', err);
     res.status(500).json({ status: 'error', message: 'Failed to fetch organization details' });
+  }
+});
+
+// Get all organizations for a driver (via UserOrganizations)
+router.get('/driver/:userId/organizations', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+    
+    // Get all organizations the driver belongs to
+    const [driverOrgRows] = await connection.execute(`
+      SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID, o.product1, o.product2, o.product3, o.product4, o.product5
+      FROM Organizations o
+      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+      WHERE uo.USER_ID = ?
+      ORDER BY o.ORG_NAME
+    `, [userId]);
+
+    connection.release();
+
+    if (driverOrgRows.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'User not assigned to any organization' });
+    }
+
+    res.json({ 
+      status: 'success', 
+      data: driverOrgRows
+    });
+  } catch (err) {
+    console.error('Error fetching driver organizations:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch driver organizations' });
+  }
+});
+
+// Get catalog (products) for a specific organization
+router.get('/organization/:orgId/catalog', async (req, res) => {
+  const { orgId } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+    
+    const [orgRows] = await connection.execute(`
+      SELECT ORG_ID, ORG_NAME, product1, product2, product3, product4, product5
+      FROM Organizations
+      WHERE ORG_ID = ?
+    `, [orgId]);
+
+    connection.release();
+
+    if (orgRows.length === 0) {
+      return res.status(404).json({ status: 'error', message: 'Organization not found' });
+    }
+
+    const org = orgRows[0];
+    const productIds = [org.product1, org.product2, org.product3, org.product4, org.product5]
+      .filter(id => id !== null && id !== undefined)
+      .map(Number);
+
+    res.json({ 
+      status: 'success', 
+      data: {
+        organization: org,
+        productIds: productIds
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching catalog:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch catalog' });
+  }
+});
+
+// Update organization catalog (admin or sponsor only)
+router.put('/organization/:orgId/catalog', async (req, res) => {
+  const { orgId } = req.params;
+  const { product1, product2, product3, product4, product5, user } = req.body;
+
+  if (!user || !['admin', 'sponsor'].includes(user.USER_TYPE)) {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only admins and sponsors can update catalog' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // If sponsor, verify they own this organization
+    if (user.USER_TYPE === 'sponsor') {
+      const [sponsorOrgRows] = await connection.execute(`
+        SELECT uo.ORG_ID
+        FROM UserOrganizations uo
+        WHERE uo.USER_ID = ? AND uo.ORG_ID = ?
+      `, [user.USER_ID, orgId]);
+
+      if (sponsorOrgRows.length === 0) {
+        connection.release();
+        return res.status(403).json({ status: 'error', message: 'Forbidden: you do not own this organization' });
+      }
+    }
+    // If admin, no need to check ownership - they can update any organization
+
+    // Update organization with selected products
+    const [result] = await connection.execute(
+      'UPDATE Organizations SET product1 = ?, product2 = ?, product3 = ?, product4 = ?, product5 = ? WHERE ORG_ID = ?',
+      [product1, product2, product3, product4, product5, orgId]
+    );
+
+    connection.release();
+
+    if (result.affectedRows > 0) {
+      res.json({ status: 'success', message: 'Catalog updated successfully' });
+    } else {
+      res.status(404).json({ status: 'error', message: 'Organization not found' });
+    }
+  } catch (err) {
+    console.error('Error updating catalog:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to update catalog' });
   }
 });
 

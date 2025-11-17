@@ -283,7 +283,7 @@ function AdminProfilePage() {
           </div>
         )}
       </div>
-      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem' }}>
+      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
         <button onClick={() => navigate('/admin/adduser')}>Add User</button>
         <button onClick={() => navigate('/admin/updateuser')}>Update User</button>
         <button onClick={() => navigate('/adjust-points')}>Adjust Points</button>

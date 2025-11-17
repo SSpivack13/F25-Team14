@@ -25,7 +25,7 @@ app.use('/api', aboutRoutes);
 app.use('/api', verifyToken, userRoutes);
 app.use('/api', verifyToken, notificationsRoutes);
 app.use('/api', verifyToken, pointrulesRoutes);
-app.use('/api', organizationsRoutes);
+app.use('/api', verifyToken, organizationsRoutes);
 app.use('/api', logsRoutes);
 app.use('/api', transactionsRoutes);
 

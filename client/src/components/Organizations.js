@@ -26,6 +26,17 @@ function Organizations() {
   const [adjustPointsDriverName, setAdjustPointsDriverName] = useState('');
   const [pointsDelta, setPointsDelta] = useState(0);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [products, setProducts] = useState([]);
+  const [showManageProductsModal, setShowManageProductsModal] = useState(false);
+  const [selectedOrgForProducts, setSelectedOrgForProducts] = useState(null);
+  const [orgProducts, setOrgProducts] = useState({
+    product1: null,
+    product2: null,
+    product3: null,
+    product4: null,
+    product5: null
+  });
+  const [availableProducts, setAvailableProducts] = useState([]);
   const navigate = useNavigate();
   
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -35,9 +46,11 @@ function Organizations() {
     if (user?.USER_TYPE === 'admin') {
       fetchOrganizations();
       fetchAvailableSponsors();
+      fetchAvailableProducts();
     } else if (user?.USER_TYPE === 'sponsor') {
       fetchMyOrganization();
       fetchAvailableDrivers();
+      fetchAvailableProducts();
     }
   }, []);
 
@@ -71,6 +84,72 @@ function Organizations() {
     } catch (err) {
       console.error('Failed to fetch sponsors:', err);
     }
+  };
+
+  const fetchAvailableProducts = async () => {
+    try {
+      const response = await fetch('https://fakestoreapi.com/products');
+      const data = await response.json();
+      setAvailableProducts(data || []);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    }
+  };
+
+  const handleManageProducts = (org) => {
+    setSelectedOrgForProducts(org);
+    setOrgProducts({
+      product1: org.product1 || null,
+      product2: org.product2 || null,
+      product3: org.product3 || null,
+      product4: org.product4 || null,
+      product5: org.product5 || null
+    });
+    setShowManageProductsModal(true);
+  };
+
+  const handleSaveProducts = async () => {
+    if (!selectedOrgForProducts) return;
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/organization/${selectedOrgForProducts.ORG_ID}/catalog`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
+        body: JSON.stringify({
+          product1: orgProducts.product1,
+          product2: orgProducts.product2,
+          product3: orgProducts.product3,
+          product4: orgProducts.product4,
+          product5: orgProducts.product5,
+          user
+        })
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setMessage('Products updated successfully!');
+        setMessageType('success');
+        setShowManageProductsModal(false);
+        fetchOrganizations();
+      } else {
+        setMessage(data.message || 'Failed to update products');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error('Error saving products:', err);
+      setMessage('Server error');
+      setMessageType('error');
+    }
+  };
+
+  const handleProductChange = (slot, productId) => {
+    setOrgProducts(prev => ({
+      ...prev,
+      [slot]: productId ? parseInt(productId) : null
+    }));
   };
 
   const handleCreateOrg = async () => {
@@ -183,6 +262,23 @@ function Organizations() {
       console.error('Failed to fetch organization:', err);
     }
   };
+
+  const fetchProducts = async () => {
+    console.log('Fetching products for organization:', myOrganization.ORG_ID);
+    try{
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/products/${myOrganization.ORG_ID}`, {
+        headers: authHeaders()
+    });
+      const data = await response.json();
+      console.log('Products response:', data);
+      if (data.status === 'success') {
+        setProducts(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    }
+  };
+
 
   const fetchAvailableDrivers = async () => {
     try {
@@ -497,6 +593,16 @@ function Organizations() {
                       <p>No drivers in organization.</p>
                     )}
                   </div>
+
+                  <div style={{ marginTop: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <h3>Manage Organization Products</h3>
+                    <button 
+                      onClick={() => handleManageProducts(myOrganization)}
+                      style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Manage Products
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p>You are not assigned to any organization.</p>
@@ -524,6 +630,12 @@ function Organizations() {
                         <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_NAME}</td>
                         <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{org.ORG_LEADER_ID}</td>
                         <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
+                          <button 
+                            onClick={() => handleManageProducts(org)}
+                            style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', marginRight: '8px' }}
+                          >
+                            Manage Products
+                          </button>
                           <button 
                             onClick={() => handleDeleteClick(org.ORG_ID)}
                             style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
@@ -689,6 +801,76 @@ function Organizations() {
                 style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#28a745', color: 'white' }}
               >
                 Adjust Points
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Products Modal */}
+      {showManageProductsModal && selectedOrgForProducts && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          overflow: 'auto'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            minWidth: '400px',
+            maxWidth: '600px',
+            margin: '2rem auto'
+          }}>
+            <h3>Manage Products for {selectedOrgForProducts.ORG_NAME}</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              {[1, 2, 3, 4, 5].map(slot => (
+                <div key={slot}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Product Slot {slot}:
+                  </label>
+                  <select
+                    value={orgProducts[`product${slot}`] || ''}
+                    onChange={(e) => handleProductChange(`product${slot}`, e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  >
+                    <option value="">-- No Product --</option>
+                    {availableProducts.map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.title} (ID: {product.id})
+                      </option>
+                    ))}
+                  </select>
+                  {orgProducts[`product${slot}`] && (
+                    <small style={{ display: 'block', color: '#666', marginTop: '0.25rem' }}>
+                      Selected: {availableProducts.find(p => p.id === orgProducts[`product${slot}`])?.title}
+                    </small>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setShowManageProductsModal(false)}
+                style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveProducts}
+                style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#28a745', color: 'white' }}
+              >
+                Save Products
               </button>
             </div>
           </div>
