@@ -467,18 +467,20 @@ router.post('/organizations/invite-driver', async (req, res) => {
     const org = sponsorOrgRows[0];
     const inviteToken = crypto.randomBytes(32).toString('hex');
 
-    // Store invitation
+    // Store invitation (table already exists)
     await connection.execute(
       'INSERT INTO DriverInvitations (EMAIL, ORG_ID, INVITE_TOKEN, INVITED_BY, CREATED_AT) VALUES (?, ?, ?, ?, NOW())',
       [email, org.ORG_ID, inviteToken, user.USER_ID]
     );
 
-    // Send email
-    const transporter = nodemailer.createTransporter({
-      service: 'gmail', // or your email service
+    // Send email with Resend
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY
       }
     });
 
@@ -500,7 +502,7 @@ router.post('/organizations/invite-driver', async (req, res) => {
     res.json({ status: 'success', message: 'Invitation sent successfully' });
   } catch (err) {
     console.error('Error sending invitation:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to send invitation' });
+    res.status(500).json({ status: 'error', message: 'Failed to send invitation', error: err.message });
   }
 });
 

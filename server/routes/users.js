@@ -201,4 +201,70 @@ router.get('/users/all-drivers', async (req, res) => {
   }
 });
 
+// Add this route for invite-based registration
+router.post('/users/register-with-invite', async (req, res) => {
+  const { username, password, f_name, l_name, email, inviteToken } = req.body;
+
+  if (!username || !password || !f_name || !l_name || !email || !inviteToken) {
+    return res.status(400).json({ status: 'error', message: 'All fields required' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Verify invite token
+    const [inviteRows] = await connection.execute(
+      'SELECT * FROM DriverInvitations WHERE INVITE_TOKEN = ? AND USED_AT IS NULL AND EMAIL = ?',
+      [inviteToken, email]
+    );
+
+    if (inviteRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Invalid or expired invitation' });
+    }
+
+    const invite = inviteRows[0];
+
+    // Check if username already exists
+    const [existingUsers] = await connection.execute(
+      'SELECT USERNAME FROM Users WHERE USERNAME = ?',
+      [username]
+    );
+
+    if (existingUsers.length > 0) {
+      connection.release();
+      return res.status(409).json({ status: 'error', message: 'Username already exists' });
+    }
+
+    // Get next user ID
+    const [maxIdResult] = await connection.query('SELECT MAX(USER_ID) AS maxId FROM Users');
+    const nextUserId = (maxIdResult[0].maxId || 0) + 1;
+
+    // Create user
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await connection.execute(
+      'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, 0)',
+      [nextUserId, username, hashedPassword, 'driver', f_name, l_name]
+    );
+
+    // Add user to organization
+    await connection.execute(
+      'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
+      [nextUserId, invite.ORG_ID]
+    );
+
+    // Mark invitation as used
+    await connection.execute(
+      'UPDATE DriverInvitations SET USED_AT = NOW() WHERE INVITE_TOKEN = ?',
+      [inviteToken]
+    );
+
+    connection.release();
+    res.json({ status: 'success', message: 'Account created successfully' });
+  } catch (err) {
+    console.error('Error in register-with-invite:', err);
+    res.status(500).json({ status: 'error', message: 'Registration failed' });
+  }
+});
+
 export default router;
