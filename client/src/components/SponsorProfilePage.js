@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { authHeaders } from '../utils/auth';
 import Banner from './Banner';
 
 function SponsorProfilePage() {
@@ -43,7 +44,9 @@ function SponsorProfilePage() {
 
     const fetchUserProfile = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/profile`);
+        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/profile`, { 
+          headers: authHeaders() 
+        });
         if (!response.ok) throw new Error('Failed to fetch profile');
         const data = await response.json();
         if (data.status === 'success') {
