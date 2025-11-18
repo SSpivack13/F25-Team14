@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { authHeaders } from '../utils/auth';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
@@ -17,11 +18,13 @@ function ProfilePage() {
   const [loading, setLoading] = useState(true);
 
   const [profile, setProfile] = useState({
-    username: '',
-    password: 'password123',
-    email: '',
-    phone: '',
-    emailNotifications: false
+    username: user?.USERNAME || user?.username,
+    password: user?.PASSWORD || user?.password,
+    email: user?.EMAIL || user?.email,
+    firstName: user?.F_NAME || user?.f_name || user?.firstName,
+    lastName: user?.L_NAME || user?.l_name || user?.lastName,
+    phone: user?.PHONE || user?.phone,
+    emailNotifications: user?.EMAIL_NOTIFICATIONS || user?.emailNotifications || false
   });
 
   const [editForm, setEditForm] = useState({
@@ -29,6 +32,9 @@ function ProfilePage() {
     password: '',
     confirmPassword: '',
     email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
     emailNotifications: false
   });
 
@@ -51,7 +57,10 @@ function ProfilePage() {
           setProfile(prev => ({
             ...prev,
             username: userData.USERNAME,
-            email: userData.EMAIL || `${userData.USER_TYPE}@talladeganights.com`
+            email: userData.EMAIL || `${userData.USER_TYPE}@talladeganights.com`,
+            firstName: userData.F_NAME,
+            lastName: userData.L_NAME,
+            phone: userData.PHONE || userData.phone
           }));
         }
       } catch (err) {
@@ -93,6 +102,9 @@ function ProfilePage() {
       password: '',
       confirmPassword: '',
       email: profile.email,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      phone: profile.phone,
       emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
@@ -105,12 +117,15 @@ function ProfilePage() {
       password: '',
       confirmPassword: '',
       email: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
       emailNotifications: false
     });
     setMessage('');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editForm.username.trim()) {
       setMessage('Username is required');
       setMessageType('error');
@@ -126,19 +141,56 @@ function ProfilePage() {
       setMessageType('error');
       return;
     }
-    const updatedProfile = {
-      username: editForm.username,
-      password: editForm.password || profile.password,
-      email: editForm.email,
-      emailNotifications: editForm.emailNotifications
+    const payload = {
+      USERNAME: editForm.username,
+      EMAIL: editForm.email,
+      F_NAME: editForm.firstName,
+      L_NAME: editForm.lastName
     };
-    setProfile(updatedProfile);
-    setIsEditing(false);
-    setMessage('Profile updated successfully!');
-    setMessageType('success');
-    setTimeout(() => {
-      setMessage('');
-    }, 3000);
+    if (editForm.phone) {
+      payload.PHONE = editForm.phone;
+    }
+    if (editForm.password) {
+      payload.PASSWORD = editForm.password;
+    }
+
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user?.USER_ID;
+      if (!userId) throw new Error('Missing user ID');
+
+      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, payload);
+      if (res.data?.status === 'success') {
+
+        //Update local state and localStorage user object (keep contract similar to login)
+        const updatedProfile = {
+          ...profile,
+          username: editForm.username,
+          email: editForm.email,
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          phone: editForm.phone,
+        };
+        setProfile(updatedProfile);
+
+        //Update cached user in localStorage so other pages reflect changes
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const newStoredUser = { ...storedUser, USERNAME: editForm.username, EMAIL: editForm.email, F_NAME: editForm.firstName, L_NAME: editForm.lastName, PHONE: editForm.phone };
+        localStorage.setItem('user', JSON.stringify(newStoredUser));
+
+        setIsEditing(false);
+        setMessage('Profile updated successfully!');
+        setMessageType('success');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage(res.data?.message || 'Failed to update profile');
+        setMessageType('error');
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setMessage('Failed to update profile');
+      setMessageType('error');
+    }
   };
   const handleInputChange = (field, value) => {
     setEditForm(prev => ({
@@ -166,6 +218,14 @@ function ProfilePage() {
         {!isEditing ? (
           <div className="profile-view">
             <div className="profile-field">
+              <label>First Name</label>
+              <div className="field-value">{profile.firstName || 'Not provided'}</div>
+            </div>
+            <div className="profile-field">
+              <label>Last Name</label>
+              <div className="field-value">{profile.lastName || 'Not provided'}</div>
+            </div>
+            <div className="profile-field">
               <label>Username</label>
               <div className="field-value">{profile.username}</div>
             </div>
@@ -188,6 +248,10 @@ function ProfilePage() {
               <div className="field-value">{profile.email || 'Not provided'}</div>
             </div>
             <div className="profile-field">
+              <label>Phone</label>
+              <div className="field-value">{profile.phone || 'Not provided'}</div>
+            </div>
+            <div className="profile-field">
               <label>Email Notifications</label>
               <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
             </div>
@@ -197,6 +261,24 @@ function ProfilePage() {
           </div>
         ) : (
           <div className="profile-edit">
+            <div className="form-group">
+              <label>First Name</label>
+              <input
+                type="text"
+                value={editForm.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Last Name</label>
+              <input
+                type="text"
+                value={editForm.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                placeholder="Enter last name"
+              />
+            </div>
             <div className="form-group">
               <label>Username</label>
               <input
@@ -213,6 +295,15 @@ function ProfilePage() {
                 value={editForm.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
+              />
+            </div>
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter phone number"
               />
             </div>
             <div className="form-group">
