@@ -535,42 +535,29 @@ function Organizations() {
           
           {user?.USER_TYPE === 'admin' && (
             <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-              <h3>Create Organization</h3>
-              {message && (
-                <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
-                  {message}
-                </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div>
-                  <label>Organization Name:</label>
-                  <input 
-                    type="text"
-                    placeholder="Enter organization name" 
-                    value={newOrg.ORG_NAME} 
-                    onChange={(e) => setNewOrg(prev => ({ ...prev, ORG_NAME: e.target.value }))} 
-                    style={{ marginLeft: '8px', padding: '4px' }}
-                  />
-                </div>
-                <div>
-                  <label>Select Sponsor:</label>
-                  <select 
-                    value={newOrg.ORG_LEADER_ID} 
-                    onChange={(e) => setNewOrg(prev => ({ ...prev, ORG_LEADER_ID: e.target.value }))}
-                    style={{ marginLeft: '8px', padding: '4px' }}
-                  >
-                    <option value="">-- Select a sponsor --</option>
-                    {availableSponsors.map(sponsor => (
-                      <option key={sponsor.USER_ID} value={sponsor.USER_ID}>
-                        {sponsor.USERNAME} ({sponsor.F_NAME} {sponsor.L_NAME})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button onClick={handleCreateOrg} style={{ marginTop: '8px' }}>
-                  Create Organization
-                </button>
-              </div>
+              <h3>Admin Bulk Upload</h3>
+              <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                Admins can upload files that may create organizations (O) and add users (D = Driver, S = Sponsor).
+                Organization name is required on D and S records (or created earlier in the same file with O records).
+              </p>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                <strong>Admin file format:</strong> &lt;type&gt;|Organization Name|FirstName|LastName|email@example.com
+              </p>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                <strong>Valid types:</strong> O (Organization), D (Driver), S (Sponsor)
+              </p>
+              <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                <strong>Sample:</strong><br/>
+                O|New Organization<br/>
+                D|New Organization|Joe|Driver|me@email.com<br/>
+                S|New Organization|Jill|Sponsor|jill@mail.com
+              </p>
+              <button 
+                onClick={handleBulkUploadClick}
+                style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Upload Admin File
+              </button>
             </div>
           )}
 
@@ -592,24 +579,53 @@ function Organizations() {
 
                   <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
                     <h3>Bulk Upload Users</h3>
-                    <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
-                      Upload a text file with user data.
-                    </p>
-                    <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
-                      <strong>Format:</strong> &lt;type&gt;||FirstName|LastName|email@example.com
-                    </p>
-                    <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
-                      <strong>Valid types:</strong>
-                      <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-                        <li>D - Driver</li>
-                        <li>S - Sponsor</li>
-                      </ul>
-                    </p>
-                    <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
-                      <strong>Example:</strong><br/>
-                      D||John|Smith|john@example.com<br/>
-                      S||Jane|Doe|jane@example.com
-                    </p>
+
+                    {user?.USER_TYPE === 'admin' ? (
+                      <>
+                        <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                          Upload an admin-format text file. Admins may include O records to create organizations and D/S records to add users.
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.5rem' }}>
+                          <strong>Format:</strong> &lt;type&gt;|Organization Name|FirstName|LastName|email@example.com
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                          <strong>Valid types:</strong>
+                          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                            <li>O - Organization (admin only) — format: O|Organization Name</li>
+                            <li>D - Driver — format: D|Organization Name|FirstName|LastName|email</li>
+                            <li>S - Sponsor — format: S|Organization Name|FirstName|LastName|email</li>
+                          </ul>
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                          <strong>Example:</strong><br/>
+                          O|New Organization<br/>
+                          D|New Organization|Joe|Driver|me@email.com<br/>
+                          S|New Organization|Jill|Sponsor|jill@mail.com
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                          Upload a text file with user data. Sponsors can only add Drivers and Sponsors to their own organization.
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                          <strong>Format:</strong> &lt;type&gt;||FirstName|LastName|email@example.com
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                          <strong>Valid types:</strong>
+                          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                            <li>D - Driver</li>
+                            <li>S - Sponsor</li>
+                          </ul>
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                          <strong>Example:</strong><br/>
+                          D||John|Smith|john@example.com<br/>
+                          S||Jane|Doe|jane@example.com
+                        </p>
+                      </>
+                    )}
+                    
                     <button 
                       onClick={handleBulkUploadClick}
                       style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -1007,24 +1023,51 @@ function Organizations() {
             }}
           >
             <h3>Bulk Upload Users</h3>
-            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
-              Upload a text file with user data.
-            </p>
-            <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
-              <strong>Format:</strong> &lt;type&gt;||FirstName|LastName|email@example.com
-            </p>
-            <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
-              <strong>Valid types:</strong>
-              <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-                <li>D - Driver</li>
-                <li>S - Sponsor</li>
-              </ul>
-            </p>
-            <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
-              <strong>Example:</strong><br/>
-              D||John|Smith|john@example.com<br/>
-              S||Jane|Doe|jane@example.com
-            </p>
+            {user?.USER_TYPE === 'admin' ? (
+              <>
+                <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                  Upload an admin-format text file. Admins may include O records to create organizations and D/S records to add users.
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '0.5rem' }}>
+                  <strong>Format:</strong> &lt;type&gt;|Organization Name|FirstName|LastName|email@example.com
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                  <strong>Valid types:</strong>
+                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                    <li>O - Organization (admin only) — format: O|Organization Name</li>
+                    <li>D - Driver — format: D|Organization Name|FirstName|LastName|email</li>
+                    <li>S - Sponsor — format: S|Organization Name|FirstName|LastName|email</li>
+                  </ul>
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                  <strong>Example:</strong><br/>
+                  O|New Organization<br/>
+                  D|New Organization|Joe|Driver|me@email.com<br/>
+                  S|New Organization|Jill|Sponsor|jill@mail.com
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                  Upload a text file with user data. Sponsors can only add Drivers and Sponsors to their own organization.
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                  <strong>Format:</strong> &lt;type&gt;||FirstName|LastName|email@example.com
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                  <strong>Valid types:</strong>
+                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                    <li>D - Driver</li>
+                    <li>S - Sponsor</li>
+                  </ul>
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                  <strong>Example:</strong><br/>
+                  D||John|Smith|john@example.com<br/>
+                  S||Jane|Doe|jane@example.com
+                </p>
+              </>
+            )}
             
             {!bulkUploadResults && (
               <div style={{ marginBottom: '1rem' }}>

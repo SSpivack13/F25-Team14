@@ -509,162 +509,228 @@ router.post('/organizations/invite-driver', async (req, res) => {
   }
 });
 
-// Bulk upload users (sponsor only)
 router.post('/organizations/bulk-upload', async (req, res) => {
   try {
-    // Get user from custom headers
     const userId = req.headers['x-user-id'];
-    const userType = req.headers['x-user-type'];
-
-    if (!userId || userType !== 'sponsor') {
-      return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can bulk upload' });
-    }
+    const userType = (req.headers['x-user-type'] || '').toLowerCase();
 
     if (!req.file) {
       return res.status(400).json({ status: 'error', message: 'No file uploaded' });
     }
 
     const connection = await pool.getConnection();
-
-    // Get sponsor's organization
-    const [sponsorOrgRows] = await connection.execute(`
-      SELECT o.ORG_ID, o.ORG_NAME
-      FROM Organizations o
-      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
-      WHERE uo.USER_ID = ?
-    `, [userId]);
-
-    if (sponsorOrgRows.length === 0) {
-      connection.release();
-      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
-    }
-
-    const orgId = sponsorOrgRows[0].ORG_ID;
     const fileContent = req.file.buffer.toString('utf-8');
-    const lines = fileContent.split('\n').filter(line => line.trim());
+    const lines = fileContent.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
+    let total = lines.length;
     let successful = 0;
     let failed = 0;
     const errors = [];
 
+    // For admin files: map of orgName -> orgId created/found during processing
+    const orgNameToId = {};
+
+    // If sponsor upload, resolve sponsor's org once
+    let sponsorOrgId = null;
+    if (userType === 'sponsor') {
+      if (!userId) {
+        connection.release();
+        return res.status(403).json({ status: 'error', message: 'Missing sponsor id header' });
+      }
+      const [rows] = await connection.execute(`
+        SELECT o.ORG_ID FROM Organizations o
+        INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+        WHERE uo.USER_ID = ?
+      `, [userId]);
+      if (rows.length === 0) {
+        connection.release();
+        return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+      }
+      sponsorOrgId = rows[0].ORG_ID;
+    }
+
+    // Helper: create or find org by exact name
+    const findOrCreateOrg = async (orgName, allowCreate = false) => {
+      if (!orgName || orgName.trim() === '') return null;
+      if (orgNameToId[orgName]) return orgNameToId[orgName];
+
+      // Find in DB
+      const [existing] = await connection.execute(
+        'SELECT ORG_ID FROM Organizations WHERE ORG_NAME = ?',
+        [orgName]
+      );
+      if (existing.length > 0) {
+        orgNameToId[orgName] = existing[0].ORG_ID;
+        return existing[0].ORG_ID;
+      }
+      if (!allowCreate) return null;
+
+      // Org_ID is not auto-increment — compute next ORG_ID and insert explicitly
+      const [maxIdRows] = await connection.query('SELECT MAX(ORG_ID) AS maxId FROM Organizations');
+      const nextOrgId = ((maxIdRows[0] && maxIdRows[0].maxId) || 0) + 1;
+
+      const [insertRes] = await connection.execute(
+        'INSERT INTO Organizations (ORG_ID, ORG_NAME) VALUES (?, ?)',
+        [nextOrgId, orgName]
+      );
+
+      orgNameToId[orgName] = nextOrgId;
+      return nextOrgId;
+    };
+
+    // Process each line
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
+      const line = lines[i];
       const parts = line.split('|');
-      
+
+      const lineNo = i + 1;
+      if (parts.length < 2) {
+        errors.push(`Line ${lineNo}: Invalid format`);
+        failed++;
+        continue;
+      }
+
+      const type = parts[0].trim();
+      if (!['O', 'D', 'S'].includes(type)) {
+        errors.push(`Line ${lineNo}: Invalid type '${type}' (must be O, D, or S)`);
+        failed++;
+        continue;
+      }
+
+      // O record (admin only) format: O|Organization Name
+      if (type === 'O') {
+        if (userType !== 'admin') {
+          errors.push(`Line ${lineNo}: O records are admin-only`);
+          failed++;
+          continue;
+        }
+        const orgName = (parts[1] || '').trim();
+        if (!orgName) {
+          errors.push(`Line ${lineNo}: Organization name required for O record`);
+          failed++;
+          continue;
+        }
+        // ensure no pipe in name
+        if (orgName.includes('|')) {
+          errors.push(`Line ${lineNo}: Organization name contains invalid '|' character`);
+          failed++;
+          continue;
+        }
+        try {
+          const orgId = await findOrCreateOrg(orgName, true);
+          successful++;
+        } catch (err) {
+          console.error(`Line ${lineNo} error creating org:`, err);
+          errors.push(`Line ${lineNo}: ${err.message}`);
+          failed++;
+        }
+        continue;
+      }
+
+      // D or S records require 5 fields: type|OrgName|First|Last|Email
       if (parts.length !== 5) {
-        errors.push(`Line ${i + 1}: Invalid format. Expected 5 fields separated by |`);
+        errors.push(`Line ${lineNo}: Invalid ${type} record format; expected 5 fields`);
         failed++;
         continue;
       }
 
-      const [type, orgName, firstName, lastName, email] = parts;
+      const orgName = (parts[1] || '').trim();
+      const firstName = (parts[2] || '').trim();
+      const lastName = (parts[3] || '').trim();
+      const email = (parts[4] || '').trim();
 
-      if (!['D', 'S'].includes(type)) {
-        errors.push(`Line ${i + 1}: Invalid type '${type}'. Must be D (Driver) or S (Sponsor)`);
+      // Basic validation
+      if ([orgName, firstName, lastName, email].some(f => f.includes('|'))) {
+        errors.push(`Line ${lineNo}: Fields cannot contain '|' character`);
         failed++;
         continue;
       }
-
-      if (orgName.trim() !== '') {
-        errors.push(`Line ${i + 1}: Organization name field must be empty for sponsors`);
-        failed++;
-        continue;
-      }
-
-      if (firstName.includes('|') || lastName.includes('|') || email.includes('|')) {
-        errors.push(`Line ${i + 1}: Data cannot contain pipe (|) character`);
-        failed++;
-        continue;
-      }
-
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        errors.push(`Line ${i + 1}: Invalid email format`);
+        errors.push(`Line ${lineNo}: Invalid email '${email}'`);
         failed++;
         continue;
+      }
+
+      // Resolve target organization id
+      let targetOrgId = null;
+      if (userType === 'sponsor') {
+        // Sponsors must omit organization name (per rules) — but allow if they included by mistake: use sponsor org
+        targetOrgId = sponsorOrgId;
+      } else if (userType === 'admin') {
+        // Admins must provide organization name
+        if (!orgName) {
+          errors.push(`Line ${lineNo}: Organization name required for admin uploads`);
+          failed++;
+          continue;
+        }
+        // Try find or create (admins can rely on earlier O records or create implicitly)
+        const resolved = await findOrCreateOrg(orgName, true);
+        if (!resolved) {
+          errors.push(`Line ${lineNo}: Organization '${orgName}' not found and could not be created`);
+          failed++;
+          continue;
+        }
+        targetOrgId = resolved;
       }
 
       try {
-        const [existingUser] = await connection.execute(
+        // Check if user already exists
+        const [existingUserRows] = await connection.execute(
           'SELECT USER_ID FROM Users WHERE EMAIL = ?',
           [email]
         );
 
-        let userId;
-
-        if (existingUser.length > 0) {
-          // User already exists
-          userId = existingUser[0].USER_ID;
-          errors.push(`Line ${i + 1}: User with email ${email} already exists`);
-
+        let newUserId;
+        if (existingUserRows.length > 0) {
+          newUserId = existingUserRows[0].USER_ID;
         } else {
-          // Generate next USER_ID manually
-          const [maxIdResult] = await connection.query(
-            'SELECT COALESCE(MAX(USER_ID), 0) + 1 AS nextId FROM Users'
-          );
-          const nextUserId = maxIdResult[0].nextId;
+          // compute next USER_ID (table is not auto-increment)
+          const [maxUserRows] = await connection.query('SELECT MAX(USER_ID) AS maxId FROM Users');
+          const nextUserId = ((maxUserRows[0] && maxUserRows[0].maxId) || 0) + 1;
 
+          // create user with explicit USER_ID
           const username = email.split('@')[0];
-          const hashedPassword = await bcrypt.hash(
-            crypto.randomBytes(16).toString('hex'),
-            10
-          );
+          const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+          const userTypeDb = (type === 'D') ? 'driver' : 'sponsor';
 
-          // Insert user with manual USER_ID
-          await connection.execute(
+          const [ins] = await connection.execute(
             'INSERT INTO Users (USER_ID, USERNAME, EMAIL, F_NAME, L_NAME, PASSWORD, USER_TYPE) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [
-              nextUserId,
-              username,
-              email,
-              firstName,
-              lastName,
-              hashedPassword,
-              type === 'D' ? 'driver' : 'sponsor'
-            ]
+            [nextUserId, username, email, firstName, lastName, hashedPassword, userTypeDb]
           );
 
-          userId = nextUserId;
-
-          console.log(`Created new user: ${email}, USER_ID: ${userId}`);
+          newUserId = nextUserId;
         }
-        
+
+        // Add to UserOrganizations composite table if not already present
         const [existingOrgUser] = await connection.execute(
           'SELECT * FROM UserOrganizations WHERE USER_ID = ? AND ORG_ID = ?',
-          [userId, orgId]
+          [newUserId, targetOrgId]
         );
 
         if (existingOrgUser.length === 0) {
           await connection.execute(
             'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
-            [userId, orgId]
+            [newUserId, targetOrgId]
           );
-          console.log(`Added USER_ID ${userId} to ORG_ID ${orgId}`);
-          successful++;
         } else {
-          errors.push(`Line ${i + 1}: User already assigned to this organization`);
-          failed++;
+          // already in org — treat as non-fatal
         }
+
+        successful++;
       } catch (err) {
-        console.error(`Error processing line ${i + 1}:`, err);
-        errors.push(`Line ${i + 1}: ${err.message}`);
+        console.error(`Line ${lineNo} processing error:`, err);
+        errors.push(`Line ${lineNo}: ${err.message}`);
         failed++;
       }
-    }
+    } // end for lines
 
     connection.release();
 
     res.json({
       status: 'success',
-      message: `Processed ${lines.length} records`,
-      results: {
-        total: lines.length,
-        successful,
-        failed,
-        errors
-      }
+      message: `Processed ${total} records`,
+      results: { total, successful, failed, errors }
     });
   } catch (err) {
     console.error('Error in bulk upload:', err);
@@ -697,9 +763,9 @@ router.put('/organizations/update-driver-points', async (req, res) => {
 
     const orgId = sponsorOrgRows[0].ORG_ID;
 
-    // Update points in UserOrganizations table
+    // Update driver's points in UserOrganizations
     const [result] = await connection.execute(
-      'UPDATE UserOrganizations SET POINT_TOTAL = POINT_TOTAL + ? WHERE USER_ID = ? AND ORG_ID = ?',
+      'UPDATE UserOrganizations SET POINT_TOTAL = COALESCE(POINT_TOTAL, 0) + ? WHERE USER_ID = ? AND ORG_ID = ?',
       [pointsDelta, driverId, orgId]
     );
 
