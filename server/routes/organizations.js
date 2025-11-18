@@ -473,7 +473,7 @@ router.post('/organizations/invite-driver', async (req, res) => {
       [email, org.ORG_ID, inviteToken, user.USER_ID]
     );
 
-    // Send email with Resend
+    // Send email with Resend (test mode - sends to your email)
     const transporter = nodemailer.createTransport({
       host: 'smtp.resend.com',
       port: 587,
@@ -485,16 +485,19 @@ router.post('/organizations/invite-driver', async (req, res) => {
     });
 
     const inviteUrl = `${process.env.CLIENT_URL}/register?invite=${inviteToken}`;
-    
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: email,
-      subject: `Invitation to join ${org.ORG_NAME}`,
+      to: 'dspivac@g.clemson.edu', // Always send to your email for testing
+      subject: `[TEST] Invitation for ${email} to join ${org.ORG_NAME}`,
       html: `
-        <h2>You're invited to join ${org.ORG_NAME}!</h2>
+        <h2>TEST EMAIL - Invitation would be sent to: ${email}</h2>
+        <h3>You're invited to join ${org.ORG_NAME}!</h3>
         <p>You've been invited to join our driver program.</p>
         <p><a href="${inviteUrl}">Click here to sign up</a></p>
         <p>If the link doesn't work, copy and paste this URL: ${inviteUrl}</p>
+        <hr>
+        <p><small>This is a test email. In production, this would be sent to: ${email}</small></p>
       `
     });
 

@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
 
 export function verifyToken(req, res, next) {
+  // Skip auth for registration with invite
+  if (req.path === '/users/register-with-invite') {
+    return next();
+  }
+
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 

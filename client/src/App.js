@@ -17,6 +17,7 @@ import UpdateUser from './components/UpdateUser';
 import NotificationsPage from './components/NotificationsPage';
 import Cart from './components/cart';
 import Organizations from './components/Organizations';
+import RegisterWithInvite from './components/RegisterWithInvite';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             </div>
           } />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterWithInvite />} />
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />

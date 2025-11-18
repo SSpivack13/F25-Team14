@@ -212,10 +212,10 @@ router.post('/users/register-with-invite', async (req, res) => {
   try {
     const connection = await pool.getConnection();
 
-    // Verify invite token
+    // Verify invite token exists and hasn't been used (remove email check)
     const [inviteRows] = await connection.execute(
-      'SELECT * FROM DriverInvitations WHERE INVITE_TOKEN = ? AND USED_AT IS NULL AND EMAIL = ?',
-      [inviteToken, email]
+      'SELECT * FROM DriverInvitations WHERE INVITE_TOKEN = ? AND USED_AT IS NULL',
+      [inviteToken]
     );
 
     if (inviteRows.length === 0) {

@@ -37,16 +37,20 @@ function RegisterWithInvite() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          username: formData.username,
+          password: formData.password,
+          f_name: formData.f_name,
+          l_name: formData.l_name,
+          email: formData.email,
           inviteToken
         })
       });
 
       const data = await response.json();
       if (data.status === 'success') {
-        setMessage('Account created successfully! You can now log in.');
+        setMessage('Account created successfully! Welcome to Talladega Nights!');
         setMessageType('success');
-        setTimeout(() => navigate('/login'), 2000);
+        setTimeout(() => navigate('/'), 2000);
       } else {
         setMessage(data.message || 'Registration failed');
         setMessageType('error');
