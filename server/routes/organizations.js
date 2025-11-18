@@ -120,7 +120,7 @@ router.get('/organizations/my-org/:userId', async (req, res) => {
 
     // Get all drivers in this organization
     const [driverRows] = await connection.execute(`
-      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, u.POINT_TOTAL
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, COALESCE(uo.POINT_TOTAL, 0) as POINT_TOTAL
       FROM Users u
       INNER JOIN UserOrganizations uo ON u.USER_ID = uo.USER_ID
       WHERE uo.ORG_ID = ? AND u.USER_TYPE = 'driver'
@@ -666,6 +666,50 @@ router.post('/organizations/bulk-upload', async (req, res) => {
   } catch (err) {
     console.error('Error in bulk upload:', err);
     res.status(500).json({ status: 'error', message: 'Failed to process file: ' + err.message });
+  }
+});
+
+// Update driver points in organization
+router.put('/organizations/update-driver-points', async (req, res) => {
+  const { driverId, pointsDelta, user } = req.body;
+
+  if (!user || user.USER_TYPE !== 'sponsor') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can adjust points' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get sponsor's organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT uo.ORG_ID
+      FROM UserOrganizations uo
+      WHERE uo.USER_ID = ?
+    `, [user.USER_ID]);
+
+    if (sponsorOrgRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    }
+
+    const orgId = sponsorOrgRows[0].ORG_ID;
+
+    // Update points in UserOrganizations table
+    const [result] = await connection.execute(
+      'UPDATE UserOrganizations SET POINT_TOTAL = POINT_TOTAL + ? WHERE USER_ID = ? AND ORG_ID = ?',
+      [pointsDelta, driverId, orgId]
+    );
+
+    connection.release();
+
+    if (result.affectedRows > 0) {
+      res.json({ status: 'success', message: 'Points updated successfully' });
+    } else {
+      res.status(400).json({ status: 'error', message: 'Driver not found in organization' });
+    }
+  } catch (err) {
+    console.error('Error updating driver points:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to update points' });
   }
 });
 
