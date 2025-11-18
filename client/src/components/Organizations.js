@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { authHeaders } from '../utils/auth';
@@ -37,6 +36,9 @@ function Organizations() {
     product5: null
   });
   const [availableProducts, setAvailableProducts] = useState([]);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
   const navigate = useNavigate();
   
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -456,6 +458,74 @@ function Organizations() {
     }
   };
 
+  const handleBulkUploadClick = () => {
+    setShowBulkUploadModal(true);
+    setBulkUploadFile(null);
+    setBulkUploadResults(null);
+  };
+
+  const handleBulkUploadFileChange = (e) => {
+    const file = e.target.files[0];
+    console.log('File selected:', file);
+    setBulkUploadFile(file);
+  };
+
+  const handleBulkUploadConfirm = async () => {
+    console.log('Upload button clicked, file:', bulkUploadFile);
+    
+    if (!bulkUploadFile) {
+      console.error('No file selected');
+      setMessage('Please select a file');
+      setMessageType('error');
+      return;
+    }
+
+    console.log('Starting upload for file:', bulkUploadFile.name);
+    const formData = new FormData();
+    formData.append('file', bulkUploadFile);
+
+    try {
+      // Get auth headers but remove Content-Type since FormData sets it automatically
+      const headers = authHeaders();
+      delete headers['Content-Type'];
+      
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/bulk-upload`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'X-User-ID': user.USER_ID,
+          'X-User-Type': user.USER_TYPE
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      console.log('Upload response:', data);
+      
+      if (data.status === 'success') {
+        setBulkUploadResults(data.results);
+        setMessage('File processed successfully!');
+        setMessageType('success');
+        fetchMyOrganization();
+        fetchAvailableDrivers();
+      } else {
+        setMessage(data.message || 'Failed to process file');
+        setMessageType('error');
+        setBulkUploadResults(data.results || null);
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setMessage('Server error: ' + err.message);
+      setMessageType('error');
+    }
+  };
+
+  const handleBulkUploadCancel = () => {
+    setShowBulkUploadModal(false);
+    setBulkUploadFile(null);
+    setBulkUploadResults(null);
+  };
+
   return (
     <div>
       <Banner />
@@ -518,6 +588,34 @@ function Organizations() {
                     <h3>Organization Details</h3>
                     <p><strong>Name:</strong> {myOrganization.ORG_NAME}</p>
                     <p><strong>Organization ID:</strong> {myOrganization.ORG_ID}</p>
+                  </div>
+
+                  <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <h3>Bulk Upload Users</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                      Upload a text file with user data.
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                      <strong>Format:</strong> &lt;type&gt;||FirstName|LastName|email@example.com
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                      <strong>Valid types:</strong>
+                      <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                        <li>D - Driver</li>
+                        <li>S - Sponsor</li>
+                      </ul>
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+                      <strong>Example:</strong><br/>
+                      D||John|Smith|john@example.com<br/>
+                      S||Jane|Doe|jane@example.com
+                    </p>
+                    <button 
+                      onClick={handleBulkUploadClick}
+                      style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Upload File
+                    </button>
                   </div>
 
                   <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
@@ -872,6 +970,112 @@ function Organizations() {
               >
                 Save Products
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div
+          onClick={() => console.log('modal backdrop clicked')}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,               // increased z-index
+            pointerEvents: 'auto'      // ensure it receives pointer events
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()} // allow clicks inside the dialog
+            style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              minWidth: '400px',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              zIndex: 10000,            // keep inner dialog above backdrop
+              pointerEvents: 'auto'
+            }}
+          >
+            <h3>Bulk Upload Users</h3>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+              Upload a text file with user data.
+            </p>
+            <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+              <strong>Format:</strong> &lt;type&gt;||FirstName|LastName|email@example.com
+            </p>
+            <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+              <strong>Valid types:</strong>
+              <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                <li>D - Driver</li>
+                <li>S - Sponsor</li>
+              </ul>
+            </p>
+            <p style={{ fontSize: '0.85rem', color: '#999', marginBottom: '1rem' }}>
+              <strong>Example:</strong><br/>
+              D||John|Smith|john@example.com<br/>
+              S||Jane|Doe|jane@example.com
+            </p>
+            
+            {!bulkUploadResults && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Select File:</label>
+                <input
+                  type="file"
+                  accept=".txt"
+                  onChange={handleBulkUploadFileChange}
+                  style={{ marginBottom: '1rem', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                />
+                {bulkUploadFile && <p style={{ fontSize: '0.9rem', color: '#666' }}>Selected: {bulkUploadFile.name}</p>}
+              </div>
+            )}
+            
+            {bulkUploadResults && (
+              <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                <h4>Upload Results</h4>
+                <p><strong>Total Records:</strong> {bulkUploadResults.total}</p>
+                <p><strong>Successful:</strong> <span style={{ color: '#28a745' }}>{bulkUploadResults.successful}</span></p>
+                <p><strong>Failed:</strong> <span style={{ color: '#dc3545' }}>{bulkUploadResults.failed}</span></p>
+                
+                {bulkUploadResults.errors && bulkUploadResults.errors.length > 0 && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <h5>Errors:</h5>
+                    <ul style={{ fontSize: '0.85rem', color: '#dc3545' }}>
+                      {bulkUploadResults.errors.map((error, idx) => (
+                        <li key={idx}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                type="button"
+                onClick={handleBulkUploadCancel}
+                style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
+              >
+                Close
+              </button>
+              {!bulkUploadResults && (
+                <button 
+                  type="button"
+                  onClick={() => { console.log('Upload button clicked (UI)'); handleBulkUploadConfirm(); }}
+                  style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#007bff', color: 'white' }}
+                >
+                  Upload
+                </button>
+              )}
             </div>
           </div>
         </div>

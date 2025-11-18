@@ -506,4 +506,167 @@ router.post('/organizations/invite-driver', async (req, res) => {
   }
 });
 
+// Bulk upload users (sponsor only)
+router.post('/organizations/bulk-upload', async (req, res) => {
+  try {
+    // Get user from custom headers
+    const userId = req.headers['x-user-id'];
+    const userType = req.headers['x-user-type'];
+
+    if (!userId || userType !== 'sponsor') {
+      return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can bulk upload' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ status: 'error', message: 'No file uploaded' });
+    }
+
+    const connection = await pool.getConnection();
+
+    // Get sponsor's organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT o.ORG_ID, o.ORG_NAME
+      FROM Organizations o
+      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+      WHERE uo.USER_ID = ?
+    `, [userId]);
+
+    if (sponsorOrgRows.length === 0) {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    }
+
+    const orgId = sponsorOrgRows[0].ORG_ID;
+    const fileContent = req.file.buffer.toString('utf-8');
+    const lines = fileContent.split('\n').filter(line => line.trim());
+
+    let successful = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split('|');
+      
+      if (parts.length !== 5) {
+        errors.push(`Line ${i + 1}: Invalid format. Expected 5 fields separated by |`);
+        failed++;
+        continue;
+      }
+
+      const [type, orgName, firstName, lastName, email] = parts;
+
+      if (!['D', 'S'].includes(type)) {
+        errors.push(`Line ${i + 1}: Invalid type '${type}'. Must be D (Driver) or S (Sponsor)`);
+        failed++;
+        continue;
+      }
+
+      if (orgName.trim() !== '') {
+        errors.push(`Line ${i + 1}: Organization name field must be empty for sponsors`);
+        failed++;
+        continue;
+      }
+
+      if (firstName.includes('|') || lastName.includes('|') || email.includes('|')) {
+        errors.push(`Line ${i + 1}: Data cannot contain pipe (|) character`);
+        failed++;
+        continue;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push(`Line ${i + 1}: Invalid email format`);
+        failed++;
+        continue;
+      }
+
+      try {
+        const [existingUser] = await connection.execute(
+          'SELECT USER_ID FROM Users WHERE EMAIL = ?',
+          [email]
+        );
+
+        let userId;
+
+        if (existingUser.length > 0) {
+          // User already exists
+          userId = existingUser[0].USER_ID;
+          errors.push(`Line ${i + 1}: User with email ${email} already exists`);
+
+        } else {
+          // Generate next USER_ID manually
+          const [maxIdResult] = await connection.query(
+            'SELECT COALESCE(MAX(USER_ID), 0) + 1 AS nextId FROM Users'
+          );
+          const nextUserId = maxIdResult[0].nextId;
+
+          const username = email.split('@')[0];
+          const hashedPassword = await bcrypt.hash(
+            crypto.randomBytes(16).toString('hex'),
+            10
+          );
+
+          // Insert user with manual USER_ID
+          await connection.execute(
+            'INSERT INTO Users (USER_ID, USERNAME, EMAIL, F_NAME, L_NAME, PASSWORD, USER_TYPE) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              nextUserId,
+              username,
+              email,
+              firstName,
+              lastName,
+              hashedPassword,
+              type === 'D' ? 'driver' : 'sponsor'
+            ]
+          );
+
+          userId = nextUserId;
+
+          console.log(`Created new user: ${email}, USER_ID: ${userId}`);
+        }
+        
+        const [existingOrgUser] = await connection.execute(
+          'SELECT * FROM UserOrganizations WHERE USER_ID = ? AND ORG_ID = ?',
+          [userId, orgId]
+        );
+
+        if (existingOrgUser.length === 0) {
+          await connection.execute(
+            'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
+            [userId, orgId]
+          );
+          console.log(`Added USER_ID ${userId} to ORG_ID ${orgId}`);
+          successful++;
+        } else {
+          errors.push(`Line ${i + 1}: User already assigned to this organization`);
+          failed++;
+        }
+      } catch (err) {
+        console.error(`Error processing line ${i + 1}:`, err);
+        errors.push(`Line ${i + 1}: ${err.message}`);
+        failed++;
+      }
+    }
+
+    connection.release();
+
+    res.json({
+      status: 'success',
+      message: `Processed ${lines.length} records`,
+      results: {
+        total: lines.length,
+        successful,
+        failed,
+        errors
+      }
+    });
+  } catch (err) {
+    console.error('Error in bulk upload:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to process file: ' + err.message });
+  }
+});
+
 export default router;
