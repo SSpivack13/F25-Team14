@@ -383,18 +383,16 @@ function Organizations() {
     }
 
     try {
-      // Get current driver points
-      const driver = drivers.find(d => d.USER_ID === adjustPointsDriverId);
-      const newTotal = Number(driver.POINT_TOTAL || 0) + Number(pointsDelta);
-
-      const response = await fetch(`${process.env.REACT_APP_API}/updateUser/${adjustPointsDriverId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/update-driver-points`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders()
         },
         body: JSON.stringify({
-          POINT_TOTAL: newTotal
+          driverId: adjustPointsDriverId,
+          pointsDelta: Number(pointsDelta),
+          user
         })
       });
 
