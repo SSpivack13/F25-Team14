@@ -43,6 +43,14 @@ function Banner() {
     }
   };
 
+  const goApply = () => {
+    if (isLoggedIn) {
+      navigate('/apply');
+    } else {
+      navigate('/login', { state: { redirectTo: '/apply' } });
+    }
+  };
+
   const goPoints = () => {
     if (isLoggedIn) {
       navigate('/points');
@@ -77,6 +85,10 @@ function Banner() {
           <>
             <button onClick={goProfile}>Profile</button>
             <button onClick={goNotifications}>Notifications</button>
+            {(() => {
+              const user = JSON.parse(localStorage.getItem('user') || '{}');
+              return user?.USER_TYPE === 'driver' ? <button onClick={goApply}>Apply</button> : null;
+            })()}
             {(() => {
               const user = JSON.parse(localStorage.getItem('user') || '{}');
               return user?.USER_TYPE === 'admin' ? <button onClick={goOrganizations}>Organizations</button> : null;

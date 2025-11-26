@@ -18,6 +18,7 @@ import NotificationsPage from './components/NotificationsPage';
 import Cart from './components/cart';
 import Organizations from './components/Organizations';
 import RegisterWithInvite from './components/RegisterWithInvite';
+import ApplicationPage from './components/ApplicationPage';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/organizations" element={<Organizations />} />
+          <Route path="/apply" element={<ApplicationPage />} />
         </Routes>
       </div>
     </Router>
