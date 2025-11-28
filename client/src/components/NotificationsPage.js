@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { authHeaders } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
@@ -6,10 +6,62 @@ import Banner from './Banner';
 
 function NotificationsPage() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
   const [form, setForm] = useState({ notif_type: '', notif_content: '' });
   const [status, setStatus] = useState(null);
   const [recipients, setRecipients] = useState({ mode: 'single', value: '' });
+  const [myNotifications, setMyNotifications] = useState([]);
+  const parsePayload = (raw) => {
+    try {
+      let p = JSON.parse(raw || '{}');
+      if (typeof p === 'string') {
+        try { p = JSON.parse(p); } catch {}
+      }
+      return typeof p === 'object' && p ? p : {};
+    } catch {
+      // Fallback: try to extract compact keys from truncated JSON string
+      const s = String(raw || '');
+      const grabStr = (key) => {
+        const m = s.match(new RegExp(`${key}\\":\\"([^\\"]*)`));
+        return m && m[1] ? m[1] : '';
+      };
+      const grabNum = (key) => {
+        const m = s.match(new RegExp(`${key}\\":(\\d+)`));
+        return m && m[1] ? Number(m[1]) : undefined;
+      };
+      return {
+        an: grabStr('an'),
+        auid: grabNum('auid'),
+        on: grabStr('on'),
+        oid: grabNum('oid'),
+        ph: grabStr('ph'),
+        em: grabStr('em'),
+        exp: grabStr('exp'),
+        msg: grabStr('msg'),
+        st: grabStr('st')
+      };
+    }
+  };
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  useEffect(() => {
+    const fetchMine = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_API}/notifications/my`, { headers: authHeaders() });
+        if (res.data?.status === 'success') setMyNotifications(res.data.data || []);
+      } catch {}
+    };
+    fetchMine();
+  }, []);
+
+  const [myDriverOrgs, setMyDriverOrgs] = useState([]);
+  useEffect(() => {
+    if (user?.USER_TYPE === 'driver' && user?.USER_ID) {
+      axios.get(`${process.env.REACT_APP_API}/driver/${user.USER_ID}/organizations`, { headers: authHeaders() })
+        .then(res => { if (res.data?.status === 'success') setMyDriverOrgs(res.data.data || []); })
+        .catch(() => {});
+    }
+  }, [user?.USER_TYPE, user?.USER_ID]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -47,6 +99,8 @@ function NotificationsPage() {
       <Banner />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}} >
         <h2>Send Notification</h2>
+        {/* My Applications moved to Application page for drivers */}
+        {/* Applications moved to My Organization page for sponsors */}
         {status && (
           <div className={`message ${status.type}`} style={{ marginBottom: '1rem' }}>{status.message}</div>
         )}

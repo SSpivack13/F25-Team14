@@ -39,6 +39,8 @@ function Organizations() {
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [bulkUploadResults, setBulkUploadResults] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [actingId, setActingId] = useState(null);
   const navigate = useNavigate();
   
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -55,6 +57,12 @@ function Organizations() {
       fetchAvailableProducts();
     }
   }, []);
+
+  useEffect(() => {
+    if (user?.USER_TYPE === 'sponsor' && myOrganization?.ORG_ID) {
+      fetchApplications();
+    }
+  }, [user?.USER_TYPE, myOrganization?.ORG_ID]);
 
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
@@ -296,6 +304,155 @@ function Organizations() {
     }
   };
 
+  const acceptApplication = async (app) => {
+    try {
+      setActingId(app?.id);
+      const auid = app?.payload?.auid || app?.payload?.applicant?.userId || (async () => {
+        try {
+          const response = await fetch(`${process.env.REACT_APP_API}/users`, { headers: authHeaders() });
+          const users = await response.json();
+          const u = Array.isArray(users) ? users.find(x => String(x.USERNAME) === String(app?.payload?.an)) : null;
+          return u?.USER_ID;
+        } catch { return undefined; }
+      })();
+      const driverId = typeof auid === 'number' ? auid : await auid;
+      if (!driverId) {
+        setMessage('Could not resolve applicant id');
+        setMessageType('error');
+        setActingId(null);
+        return;
+      }
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/add-driver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ driverId: driverId, user })
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        try {
+          const notify = {
+            notif_type: 'driver_application_decision',
+            notif_content: JSON.stringify({ ...app.payload, st: 'accepted' }),
+            recipients: { type: 'user', user_id: driverId }
+          };
+          await fetch(`${process.env.REACT_APP_API}/notifications/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify(notify)
+          });
+        } catch {}
+        setApplications(prev => prev.map(x => x.id === app.id ? { ...x, payload: { ...x.payload, st: 'accepted' } } : x));
+        fetchMyOrganization();
+        fetchApplications();
+        setMessage('Driver accepted and added to organization');
+        setMessageType('success');
+      } else {
+        setMessage(data.message || 'Failed to accept driver');
+        setMessageType('error');
+      }
+      setActingId(null);
+    } catch (err) {
+      console.error('Error accepting application:', err);
+      setMessage('Server error');
+      setMessageType('error');
+      setActingId(null);
+    }
+  };
+
+  const denyApplication = async (app) => {
+    try {
+      setActingId(app?.id);
+      const auid = app?.payload?.auid || app?.payload?.applicant?.userId || (async () => {
+        try {
+          const response = await fetch(`${process.env.REACT_APP_API}/users`, { headers: authHeaders() });
+          const users = await response.json();
+          const u = Array.isArray(users) ? users.find(x => String(x.USERNAME) === String(app?.payload?.an)) : null;
+          return u?.USER_ID;
+        } catch { return undefined; }
+      })();
+      const driverId = typeof auid === 'number' ? auid : await auid;
+      if (!driverId) {
+        setMessage('Could not resolve applicant id');
+        setMessageType('error');
+        setActingId(null);
+        return;
+      }
+      const notify = {
+        notif_type: 'driver_application_decision',
+        notif_content: JSON.stringify({ ...app.payload, st: 'denied' }),
+        recipients: { type: 'user', user_id: driverId }
+      };
+      const res = await fetch(`${process.env.REACT_APP_API}/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(notify)
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setApplications(prev => prev.map(x => x.id === app.id ? { ...x, payload: { ...x.payload, st: 'denied' } } : x));
+        setMessage('Application denied');
+        setMessageType('success');
+      } else {
+        setMessage(data.message || 'Failed to deny application');
+        setMessageType('error');
+      }
+      setActingId(null);
+    } catch (err) {
+      console.error('Error denying application:', err);
+      setMessage('Server error');
+      setMessageType('error');
+      setActingId(null);
+    }
+  };
+
+  const parseNotifPayload = (raw) => {
+    try {
+      let p = JSON.parse(raw || '{}');
+      if (typeof p === 'string') {
+        try { p = JSON.parse(p); } catch {}
+      }
+      return typeof p === 'object' && p ? p : {};
+    } catch {
+      const s = String(raw || '');
+      const grabStr = (key) => {
+        const m = s.match(new RegExp(`${key}\\":\\"([^\\"]*)`));
+        return m && m[1] ? m[1] : '';
+      };
+      const grabNum = (key) => {
+        const m = s.match(new RegExp(`${key}\\":(\\d+)`));
+        return m && m[1] ? Number(m[1]) : undefined;
+      };
+      return {
+        an: grabStr('an'),
+        auid: grabNum('auid'),
+        on: grabStr('on'),
+        oid: grabNum('oid'),
+        ph: grabStr('ph'),
+        em: grabStr('em'),
+        exp: grabStr('exp'),
+        msg: grabStr('msg'),
+        st: grabStr('st')
+      };
+    }
+  };
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/notifications/my`, { headers: authHeaders() });
+      const data = await response.json();
+      if (data.status === 'success') {
+        const rows = (data.data || []).filter(n => n.NOTIF_TYPE === 'driver_application');
+        const apps = rows.map(n => ({ id: n.NOTIF_ID, payload: parseNotifPayload(n.NOTIF_CONTENT) }));
+        const orgId = myOrganization?.ORG_ID;
+        const filtered = orgId ? apps.filter(a => (a.payload.oid === orgId)) : apps;
+        setApplications(filtered);
+      }
+    } catch (err) {
+      console.error('Failed to fetch applications:', err);
+    }
+  };
+
+
   const handleAddDriver = async () => {
     if (!selectedDriverId) {
       setMessage('Please select a driver');
@@ -383,18 +540,16 @@ function Organizations() {
     }
 
     try {
-      // Get current driver points
-      const driver = drivers.find(d => d.USER_ID === adjustPointsDriverId);
-      const newTotal = Number(driver.POINT_TOTAL || 0) + Number(pointsDelta);
-
-      const response = await fetch(`${process.env.REACT_APP_API}/updateUser/${adjustPointsDriverId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/update-driver-points`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders()
         },
         body: JSON.stringify({
-          POINT_TOTAL: newTotal
+          driverId: adjustPointsDriverId,
+          pointsDelta: Number(pointsDelta),
+          user
         })
       });
 
@@ -664,6 +819,39 @@ function Organizations() {
                         style={{ padding: '4px', flex: 1 }}
                       />
                       <button onClick={handleSendInvite}>Send Invitation</button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <h3>Applications</h3>
+                    {applications.length === 0 ? (
+                      <div style={{ color: '#666' }}>No applications</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {applications.map(a => (
+                          <div key={a.id} style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '8px' }}>
+                            <div><strong>Applicant:</strong> {a.payload.an}</div>
+                            <div><strong>Organization:</strong> {a.payload.on} (ID {a.payload.oid})</div>
+                            <div><strong>Phone:</strong> {a.payload.ph}</div>
+                            <div><strong>Email:</strong> {a.payload.em}</div>
+                            <div><strong>Experience:</strong> {a.payload.exp}</div>
+                            <div><strong>Message:</strong> {a.payload.msg}</div>
+                            {a.payload.st ? (
+                              <div style={{ marginTop: '6px', fontWeight: 600, color: a.payload.st === 'accepted' ? '#28a745' : '#dc3545' }}>
+                                {a.payload.st === 'accepted' ? 'Accepted' : 'Denied'}
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                                <button disabled={actingId === a.id} onClick={() => acceptApplication(a)} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: actingId === a.id ? 'not-allowed' : 'pointer', opacity: actingId === a.id ? 0.6 : 1 }}>Accept</button>
+                                <button disabled={actingId === a.id} onClick={() => denyApplication(a)} style={{ backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: actingId === a.id ? 'not-allowed' : 'pointer', opacity: actingId === a.id ? 0.6 : 1 }}>Deny</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginTop: '8px' }}>
+                      <button onClick={fetchApplications}>Refresh Applications</button>
                     </div>
                   </div>
 
@@ -1128,4 +1316,3 @@ function Organizations() {
 }
 
 export default Organizations;
-

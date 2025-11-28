@@ -188,7 +188,7 @@ router.get('/driver/:userId/organizations', async (req, res) => {
 
   try {
     const connection = await pool.getConnection();
-    
+
     // Get all organizations the driver belongs to
     const [driverOrgRows] = await connection.execute(`
       SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID, o.product1, o.product2, o.product3, o.product4, o.product5
@@ -204,13 +204,57 @@ router.get('/driver/:userId/organizations', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'User not assigned to any organization' });
     }
 
-    res.json({ 
-      status: 'success', 
+    res.json({
+      status: 'success',
       data: driverOrgRows
     });
   } catch (err) {
     console.error('Error fetching driver organizations:', err);
     res.status(500).json({ status: 'error', message: 'Failed to fetch driver organizations' });
+  }
+});
+
+// Get user organizations with points (for admin adjust points page)
+router.get('/user/:userId/organizations-with-points', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get user info
+    const [userRows] = await connection.execute(
+      'SELECT USER_ID, F_NAME, L_NAME, USER_TYPE FROM Users WHERE USER_ID = ?',
+      [userId]
+    );
+
+    if (userRows.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    const user = userRows[0];
+
+    // Get all organizations the user belongs to with their points
+    const [orgRows] = await connection.execute(`
+      SELECT o.ORG_ID, o.ORG_NAME, COALESCE(uo.POINT_TOTAL, 0) as POINT_TOTAL
+      FROM Organizations o
+      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+      WHERE uo.USER_ID = ?
+      ORDER BY o.ORG_NAME
+    `, [userId]);
+
+    connection.release();
+
+    res.json({
+      status: 'success',
+      data: {
+        user: user,
+        organizations: orgRows
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching user organizations with points:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch user organizations' });
   }
 });
 
@@ -513,11 +557,11 @@ router.post('/organizations/invite-driver', async (req, res) => {
       [email, org.ORG_ID, inviteToken, user.USER_ID]
     );
 
-    // Send email with Resend (test mode - sends to your email)
+    // Send email with Resend
     const transporter = nodemailer.createTransport({
       host: 'smtp.resend.com',
-      port: 587,
-      secure: false,
+      port: 465,
+      secure: true,
       auth: {
         user: 'resend',
         pass: process.env.RESEND_API_KEY
@@ -528,16 +572,16 @@ router.post('/organizations/invite-driver', async (req, res) => {
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: 'dspivac@g.clemson.edu', // Always send to your email for testing
-      subject: `[TEST] Invitation for ${email} to join ${org.ORG_NAME}`,
+      to: email,
+      subject: `You're invited to join ${org.ORG_NAME}`,
       html: `
-        <h2>TEST EMAIL - Invitation would be sent to: ${email}</h2>
-        <h3>You're invited to join ${org.ORG_NAME}!</h3>
+        <h2>You're invited to join ${org.ORG_NAME}!</h2>
         <p>You've been invited to join our driver program.</p>
-        <p><a href="${inviteUrl}">Click here to sign up</a></p>
-        <p>If the link doesn't work, copy and paste this URL: ${inviteUrl}</p>
-        <hr>
-        <p><small>This is a test email. In production, this would be sent to: ${email}</small></p>
+        <p><a href="${inviteUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Accept Invitation</a></p>
+        <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+        <p>${inviteUrl}</p>
+        <br>
+        <p style="color: #666; font-size: 12px;">If you didn't expect this invitation, you can safely ignore this email.</p>
       `
     });
 
@@ -778,30 +822,41 @@ router.post('/organizations/bulk-upload', async (req, res) => {
   }
 });
 
-// Update driver points in organization
+// Update driver points in organization (sponsor or admin)
 router.put('/organizations/update-driver-points', async (req, res) => {
-  const { driverId, pointsDelta, user } = req.body;
+  const { driverId, pointsDelta, user, orgId: requestedOrgId } = req.body;
 
-  if (!user || user.USER_TYPE !== 'sponsor') {
-    return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors can adjust points' });
+  if (!user || !['sponsor', 'admin'].includes(user.USER_TYPE)) {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: only sponsors and admins can adjust points' });
   }
 
   try {
     const connection = await pool.getConnection();
 
-    // Get sponsor's organization
-    const [sponsorOrgRows] = await connection.execute(`
-      SELECT uo.ORG_ID
-      FROM UserOrganizations uo
-      WHERE uo.USER_ID = ?
-    `, [user.USER_ID]);
+    let orgId;
 
-    if (sponsorOrgRows.length === 0) {
-      connection.release();
-      return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    if (user.USER_TYPE === 'sponsor') {
+      // Get sponsor's organization
+      const [sponsorOrgRows] = await connection.execute(`
+        SELECT uo.ORG_ID
+        FROM UserOrganizations uo
+        WHERE uo.USER_ID = ?
+      `, [user.USER_ID]);
+
+      if (sponsorOrgRows.length === 0) {
+        connection.release();
+        return res.status(400).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+      }
+
+      orgId = sponsorOrgRows[0].ORG_ID;
+    } else {
+      // Admin can specify organization
+      if (!requestedOrgId) {
+        connection.release();
+        return res.status(400).json({ status: 'error', message: 'Organization ID is required for admin' });
+      }
+      orgId = requestedOrgId;
     }
-
-    const orgId = sponsorOrgRows[0].ORG_ID;
 
     // Update driver's points in UserOrganizations
     const [result] = await connection.execute(

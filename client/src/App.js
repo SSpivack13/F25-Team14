@@ -18,6 +18,10 @@ import NotificationsPage from './components/NotificationsPage';
 import Cart from './components/cart';
 import Organizations from './components/Organizations';
 import RegisterWithInvite from './components/RegisterWithInvite';
+import RegisterPage from './components/RegisterPage';
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
+import ApplicationPage from './components/ApplicationPage';
 
 function App() {
   return (
@@ -32,6 +36,9 @@ function App() {
           } />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterWithInvite />} />
+          <Route path="/signup" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/sponsor" element={<SponsorProfilePage />} />
@@ -45,6 +52,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/organizations" element={<Organizations />} />
+          <Route path="/apply" element={<ApplicationPage />} />
         </Routes>
       </div>
     </Router>

@@ -3,6 +3,23 @@ import pool from '../db.js';
 
 const router = express.Router();
 
+router.get('/notifications/my', async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      'SELECT NOTIF_ID, USER_ID, NOTIF_TYPE, NOTIF_CONTENT FROM Notifications WHERE USER_ID = ? ORDER BY NOTIF_ID DESC',
+      [userId]
+    );
+    connection.release();
+    return res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch notifications' });
+  }
+});
+
 
 router.post('/notifications/send', async (req, res) => {
   // Accepts either:
