@@ -4,9 +4,19 @@ import { useNavigate } from 'react-router-dom';
 function Banner() {
   const navigate = useNavigate();
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  // Check if currently emulating
+  const adminOriginal = JSON.parse(localStorage.getItem('admin_original_user') || 'null');
+  const sponsorOriginal = JSON.parse(localStorage.getItem('sponsor_original_user') || 'null');
+  const isEmulating = Boolean((adminOriginal && adminOriginal.USER_ID) || (sponsorOriginal && sponsorOriginal.USER_ID));
+  const originalUser = adminOriginal || sponsorOriginal;
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('user');
+    localStorage.removeItem('admin_original_user');
+    localStorage.removeItem('sponsor_original_user');
     navigate('/');
   };
 
@@ -67,6 +77,25 @@ function Banner() {
     }
   };
 
+  const revertToOriginal = () => {
+    if (!originalUser) return;
+
+    localStorage.setItem('user', JSON.stringify(originalUser));
+    localStorage.removeItem('admin_original_user');
+    localStorage.removeItem('sponsor_original_user');
+
+    // Redirect based on original user type
+    if (originalUser.USER_TYPE === 'admin') {
+      navigate('/admin');
+    } else if (originalUser.USER_TYPE === 'sponsor') {
+      navigate('/sponsor');
+    } else {
+      navigate('/profile');
+    }
+
+    window.location.reload();
+  };
+
   return (
     <div className="banner">
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -102,6 +131,11 @@ function Banner() {
               // Show "My Organization" for sponsors who are in an organization OR users with ORG_ID
               return (user?.USER_TYPE === 'sponsor' || user?.ORG_ID) ? <button onClick={goOrganizations}>My Organization</button> : null;
             })()}
+            {isEmulating && (
+              <button onClick={revertToOriginal} style={{ backgroundColor: '#ffcc00', fontWeight: 'bold' }}>
+                Return to {originalUser?.USER_TYPE === 'admin' ? 'Admin' : 'Sponsor'}
+              </button>
+            )}
             <button onClick={handleLogout}>Logout</button>
           </>
         ) : (

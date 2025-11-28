@@ -91,7 +91,7 @@ router.put('/updateUser/:userId', async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'User ID and at least one field required' });
   }
 
-  const allowedFields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID', 'VIEW_TYPE'];
+  const allowedFields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID'];
   const updates = [];
   const values = [];
   for (const key of Object.keys(fields)) {

@@ -47,11 +47,11 @@ function Organizations() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
-    if (user?.USER_TYPE === 'admin' && user?.VIEW_TYPE === 'admin') {
+    if (user?.USER_TYPE === 'admin') {
       fetchOrganizations();
       fetchAvailableSponsors();
       fetchAvailableProducts();
-    } else if (user?.USER_TYPE === 'sponsor' || user?.VIEW_TYPE === 'sponsor') {
+    } else if (user?.USER_TYPE === 'sponsor') {
       fetchMyOrganization();
       fetchAvailableDrivers();
       fetchAvailableProducts();
@@ -686,9 +686,9 @@ function Organizations() {
       <Banner />
       <div className="template-content">
         <div className="template-card">
-          <h1>{(user?.USER_TYPE === 'sponsor' || user?.VIEW_TYPE === 'sponsor')? 'My Organization' : 'Organizations'}</h1>
+          <h1>{user?.USER_TYPE === 'sponsor' ? 'My Organization' : 'Organizations'}</h1>
           
-          {user?.USER_TYPE === 'admin' && user?.VIEW_TYPE === 'admin' && (
+          {user?.USER_TYPE === 'admin' && (
             <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
               <h3>Admin Bulk Upload</h3>
               <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
@@ -716,7 +716,7 @@ function Organizations() {
             </div>
           )}
 
-          {user?.USER_TYPE === 'sponsor' && user?.VIEW_TYPE === 'sponsor' && (
+          {user?.USER_TYPE === 'sponsor' && (
             <div>
               {message && (
                 <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
@@ -912,7 +912,7 @@ function Organizations() {
             </div>
           )}
 
-          {user?.USER_TYPE === 'admin' && user?.VIEW_TYPE === 'admin' && (
+          {user?.USER_TYPE === 'admin' && (
             <div>
               <h3>All Organizations</h3>
               {organizations.length > 0 ? (
