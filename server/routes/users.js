@@ -91,7 +91,7 @@ router.put('/updateUser/:userId', async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'User ID and at least one field required' });
   }
 
-  const allowedFields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID'];
+  const allowedFields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID', 'VIEW_TYPE'];
   const updates = [];
   const values = [];
   for (const key of Object.keys(fields)) {
@@ -122,6 +122,27 @@ router.put('/updateUser/:userId', async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Failed to update user' });
   }
 });
+
+// Get ALL sponsors (for admin emulation)
+router.get('/users/all-sponsors', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+
+    const [rows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME
+      FROM Users u
+      WHERE u.USER_TYPE = 'sponsor'
+      ORDER BY u.USERNAME
+    `);
+
+    connection.release();
+    res.json({ status: 'success', data: rows });
+  } catch (err) {
+    console.error('Error fetching all sponsors:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch sponsors' });
+  }
+});
+
 
 // Getting User Profile With User Type 
 router.get('/users/:userid/profile', async (req, res) => {

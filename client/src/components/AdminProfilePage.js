@@ -13,43 +13,52 @@ function AdminProfilePage() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const [profile, setProfile] = useState({
-      username: user?.USERNAME || user?.username,
-      password: user?.PASSWORD || user?.password,
-      email: user?.EMAIL || user?.email,
-      firstName: user?.F_NAME || user?.f_name || user?.firstName,
-      lastName: user?.L_NAME || user?.l_name || user?.lastName,
-      phone: user?.PHONE || user?.phone,
-      emailNotifications: user?.EMAIL_NOTIFICATIONS || user?.emailNotifications || false
+    username: user?.USERNAME || user?.username,
+    password: user?.PASSWORD || user?.password,
+    email: user?.EMAIL || user?.email,
+    firstName: user?.F_NAME || user?.f_name || user?.firstName,
+    lastName: user?.L_NAME || user?.l_name || user?.lastName,
+    phone: user?.PHONE || user?.phone,
+    emailNotifications: user?.EMAIL_NOTIFICATIONS || user?.emailNotifications || false
   });
 
   const [editForm, setEditForm] = useState({
-      username: '',
-      password: '',
-      confirmPassword: '',
-      email: '',
-      firstName: '',
-      lastName: '',
-      phone: '',
-      emailNotifications: false
+    username: '',
+    password: '',
+    confirmPassword: '',
+    email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    emailNotifications: false
   });
 
   const [newOrg, setNewOrg] = useState({ ORG_LEADER_ID: '', ORG_NAME: '' });
+
   const [availableSponsors, setAvailableSponsors] = useState([]);
-  
+  const [allSponsors, setAllSponsors] = useState([]);
+  const [allDrivers, setAllDrivers] = useState([]);
+  const [selectedSponsor, setSelectedSponsor] = useState('');
+  const [selectedDriver, setSelectedDriver] = useState('');
+
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  
+
+  // Load all data on mount
   useEffect(() => {
     fetchAvailableSponsors();
+    fetchAllSponsors();
+    fetchAllDrivers();
   }, []);
 
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
   };
-  
+
   const handleEdit = () => {
     setEditForm({
       username: profile.username,
@@ -64,6 +73,7 @@ function AdminProfilePage() {
     setIsEditing(true);
     setMessage('');
   };
+
   const handleCancel = () => {
     setIsEditing(false);
     setEditForm({
@@ -100,6 +110,7 @@ function AdminProfilePage() {
       setMessageType('error');
       return;
     }
+
     const payload = {
       USERNAME: editForm.username,
       EMAIL: editForm.email,
@@ -115,6 +126,7 @@ function AdminProfilePage() {
       if (!userId) throw new Error('Missing user ID');
 
       const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, payload);
+
       if (res.data?.status === 'success') {
         const updatedProfile = {
           ...profile,
@@ -124,8 +136,17 @@ function AdminProfilePage() {
           lastName: editForm.lastName,
           phone: editForm.phone
         };
+
         setProfile(updatedProfile);
-        const newStoredUser = { ...storedUser, USERNAME: editForm.username, EMAIL: editForm.email, F_NAME: editForm.firstName, L_NAME: editForm.lastName };
+
+        const newStoredUser = {
+          ...storedUser,
+          USERNAME: editForm.username,
+          EMAIL: editForm.email,
+          F_NAME: editForm.firstName,
+          L_NAME: editForm.lastName
+        };
+
         localStorage.setItem('user', JSON.stringify(newStoredUser));
 
         setIsEditing(false);
@@ -142,6 +163,7 @@ function AdminProfilePage() {
       setMessageType('error');
     }
   };
+
   const handleInputChange = (field, value) => {
     setEditForm(prev => ({
       ...prev,
@@ -149,6 +171,7 @@ function AdminProfilePage() {
     }));
   };
 
+  // Fetch unassigned sponsors (existing functionality)
   const fetchAvailableSponsors = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API}/users/unassigned-sponsors`, {
@@ -163,62 +186,90 @@ function AdminProfilePage() {
     }
   };
 
-  const handleCreateOrg = async () => {
-    if (!newOrg.ORG_LEADER_ID || !newOrg.ORG_NAME) {
-      setMessage('Please select a sponsor and enter organization name');
-      setMessageType('error');
-      return;
-    }
-    
+  // Fetch all sponsors for emulation
+  const fetchAllSponsors = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      const response = await fetch(`${process.env.REACT_APP_API}/organizations/add`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...authHeaders()
-        },
-        body: JSON.stringify({ 
-          ORG_LEADER_ID: newOrg.ORG_LEADER_ID, 
-          ORG_NAME: newOrg.ORG_NAME,
-          user 
-        })
+      const response = await fetch(`${process.env.REACT_APP_API}/users/all-sponsors`, {
+        headers: authHeaders()
       });
-      
       const data = await response.json();
-      if (data.status === 'success') {
-        setMessage('Organization created successfully!');
-        setMessageType('success');
-        setNewOrg({ ORG_LEADER_ID: '', ORG_NAME: '' });
-        fetchAvailableSponsors(); // Refresh the list
-      } else {
-        setMessage(data.message || 'Failed to create organization');
-        setMessageType('error');
-      }
+      if (data.status === 'success') setAllSponsors(data.data);
     } catch (err) {
-      console.error(err);
-      setMessage('Server error');
-      setMessageType('error');
+      console.error("Failed to load all sponsors:", err);
     }
   };
 
-  return (
+  // Fetch all drivers for emulation
+  const fetchAllDrivers = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/users/all-drivers`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.status === 'success') setAllDrivers(data.data);
+    } catch (err) {
+      console.error("Failed to load drivers:", err);
+    }
+  };
+
+  // Emulate a specific user's account
+  const emulateUser = async (targetUserId) => {
+    try {
+      setMessage('');
+      setMessageType('');
+      const response = await fetch(`${process.env.REACT_APP_API}/users/${targetUserId}/profile`, {
+        headers: authHeaders()
+      });
+
+      // Log raw response for debugging
+      console.log('Emulate fetch response:', response);
+      const data = await response.json();
+      console.log('Emulate fetch data:', data);
+      if (data.status !== "success" || !data.data) {
+        setMessage("Failed to load user profile");
+        setMessageType("error");
+        return;
+      }
+
+      const targetUser = data.data;
+      
+      // Save current admin profile before switching
+      const currentAdmin = JSON.parse(localStorage.getItem('user') || '{}');
+      if (currentAdmin && currentAdmin.USER_ID) {
+        localStorage.setItem('admin_original_user', JSON.stringify(currentAdmin));
+      }
+
+      localStorage.setItem("user", JSON.stringify(targetUser));
+      localStorage.setItem("isLoggedIn", "true");
+      console.log("Emulated user:", targetUser);
+      setMessage(`Now emulating ${targetUser.F_NAME} ${targetUser.L_NAME} (${targetUser.USERNAME})`);
+      setMessageType("success");
+
+      setTimeout(() => {
+        navigate("/");
+        window.location.reload();
+      }, 700);
+    } catch (err) {
+      console.error("Emulation error:", err);
+      setMessage("Emulation failed");
+      setMessageType("error");
+    }
+  };  return (
     <div>
       <Banner />
       <div className="profile-container">
         <div className="profile-header">
           <h1>Admin Profile</h1>
           {!isEditing && (
-            <button className="edit-btn" onClick={handleEdit}>
-              Edit Profile
-            </button>
+            <button className="edit-btn" onClick={handleEdit}>Edit Profile</button>
           )}
         </div>
+
         {message && (
-          <div className={`message ${messageType}`}>
-            {message}
-          </div>
+          <div className={`message ${messageType}`}>{message}</div>
         )}
+
+        {/* --- PROFILE VIEW --- */}
         {!isEditing ? (
           <div className="profile-view">
             <div className="profile-field">
@@ -239,7 +290,7 @@ function AdminProfilePage() {
                 <div className="field-value">
                   {showPassword ? profile.password : '••••••••••'}
                 </div>
-                <button 
+                <button
                   className="toggle-password-btn"
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -257,10 +308,13 @@ function AdminProfilePage() {
             </div>
             <div className="profile-field">
               <label>Email Notifications</label>
-              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
+              <div className="field-value">
+                {profile.emailNotifications ? 'Enabled' : 'Disabled'}
+              </div>
             </div>
           </div>
         ) : (
+          /* --- PROFILE EDIT MODE --- */
           <div className="profile-edit">
             <div className="form-group">
               <label>First Name</label>
@@ -312,11 +366,14 @@ function AdminProfilePage() {
                 <input
                   type="checkbox"
                   checked={editForm.emailNotifications}
-                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
-                />
+                  onChange={(e) =>
+                    handleInputChange('emailNotifications', e.target.checked)
+                  }
+                />{' '}
                 Send notifications to email
               </label>
             </div>
+
             <div className="password-section">
               <h3>Change Password</h3>
               <div className="form-group">
@@ -339,20 +396,76 @@ function AdminProfilePage() {
               </div>
             </div>
             <div className="form-actions">
-              <button className="save-btn" onClick={handleSave}>
-                Save Changes
-              </button>
-              <button className="cancel-btn" onClick={handleCancel}>
-                Cancel
-              </button>
+              <button className="save-btn" onClick={handleSave}>Save Changes</button>
+              <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
             </div>
           </div>
         )}
       </div>
+
+      {/* --- NAVIGATION BUTTONS --- */}
       <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
         <button onClick={() => navigate('/admin/adduser')}>Add User</button>
         <button onClick={() => navigate('/admin/updateuser')}>Update User</button>
         <button onClick={() => navigate('/adjust-points')}>Adjust Points</button>
+      </div>
+
+      {/* --- EMULATE SPECIFIC SPONSOR OR DRIVER --- */}
+      <div style={{
+        marginTop: '2rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '1rem'
+      }}>
+        <h2>Emulate Account</h2>
+
+        <div>
+          <h3>Emulate a Sponsor</h3>
+          <select
+            value={selectedSponsor}
+            onChange={(e) => setSelectedSponsor(e.target.value)}
+          >
+            <option value="">Select a sponsor...</option>
+            {allSponsors.map(s => (
+              <option key={s.USER_ID} value={s.USER_ID}>
+                {s.F_NAME} {s.L_NAME} ({s.USERNAME})
+              </option>
+            ))}
+          </select>
+          <button
+            disabled={!selectedSponsor}
+            onClick={() => emulateUser(selectedSponsor)}
+          >
+            Emulate Sponsor
+          </button>
+        </div>
+
+        <div>
+          <h3>Emulate a Driver</h3>
+          <select
+            value={selectedDriver}
+            onChange={(e) => setSelectedDriver(e.target.value)}
+          >
+            <option value="">Select a driver...</option>
+            {allDrivers.map(d => (
+              <option key={d.USER_ID} value={d.USER_ID}>
+                {d.F_NAME} {d.L_NAME} ({d.USERNAME})
+              </option>
+            ))}
+          </select>
+          <button
+            disabled={!selectedDriver}
+            onClick={() => emulateUser(selectedDriver)}
+          >
+            Emulate Driver
+          </button>
+        </div>
+      </div>
+
+      {/* --- LOGOUT BUTTON --- */}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
+        <button onClick={handleLogout}>Logout</button>
       </div>
     </div>
   );

@@ -142,6 +142,46 @@ router.get('/organizations/my-org/:userId', async (req, res) => {
   }
 });
 
+// Get drivers assigned to sponsor's organization (for emulation)
+router.get('/users/:userId/organization/drivers', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get sponsor's organization
+    const [sponsorOrgRows] = await connection.execute(`
+      SELECT o.ORG_ID
+      FROM Organizations o
+      INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
+      WHERE uo.USER_ID = ?
+    `, [userId]);
+
+    if (sponsorOrgRows.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'Sponsor not assigned to any organization' });
+    }
+
+    const orgId = sponsorOrgRows[0].ORG_ID;
+
+    // Get all drivers in this organization
+    const [driverRows] = await connection.execute(`
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME
+      FROM Users u
+      INNER JOIN UserOrganizations uo ON u.USER_ID = uo.USER_ID
+      WHERE uo.ORG_ID = ? AND u.USER_TYPE = 'driver'
+      ORDER BY u.USERNAME
+    `, [orgId]);
+
+    connection.release();
+
+    res.json({ status: 'success', data: driverRows });
+  } catch (err) {
+    console.error('Error fetching assigned drivers:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch drivers' });
+  }
+});
+
 // Get all organizations for a driver (via UserOrganizations)
 router.get('/driver/:userId/organizations', async (req, res) => {
   const { userId } = req.params;

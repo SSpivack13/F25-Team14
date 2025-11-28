@@ -35,6 +35,8 @@ function SponsorProfilePage() {
 
   const [userRole, setUserRole] = useState(user?.USER_TYPE || '');
   const [loading, setLoading] = useState(true);
+  const [assignedDrivers, setAssignedDrivers] = useState([]);
+  const [selectedDriver, setSelectedDriver] = useState('');
 
   useEffect(() => {
     if (!isLoggedIn || !user?.USER_ID) {
@@ -70,7 +72,22 @@ function SponsorProfilePage() {
       }
     };
 
+    const fetchAssignedDrivers = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/organization/drivers`, {
+          headers: authHeaders()
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+          setAssignedDrivers(data.data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch assigned drivers:', err);
+      }
+    };
+
     fetchUserProfile();
+    fetchAssignedDrivers();
 
   }, [isLoggedIn, user?.USER_ID]);
   if (!isLoggedIn) {
@@ -182,6 +199,65 @@ function SponsorProfilePage() {
       [field]: value
     }));
   };
+
+  // Load drivers when component mounts
+  const fetchAssignedDriversOld = async () => {
+    try {
+      const sponsorUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!sponsorUser?.USER_ID) return;
+
+      const response = await fetch(`${process.env.REACT_APP_API}/users/${sponsorUser.USER_ID}/organization/drivers`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setAssignedDrivers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch assigned drivers:', err);
+    }
+  };
+
+  // Emulate a driver assigned to sponsor's organization
+  const emulateDriver = async (targetUserId) => {
+    try {
+      setMessage('');
+      setMessageType('');
+      const response = await fetch(`${process.env.REACT_APP_API}/users/${targetUserId}/profile`, {
+        headers: authHeaders()
+      });
+
+      const data = await response.json();
+      if (data.status !== "success" || !data.data) {
+        setMessage("Failed to load driver profile");
+        setMessageType("error");
+        return;
+      }
+
+      const targetUser = data.data;
+
+      // Save current sponsor profile before switching
+      const currentSponsor = JSON.parse(localStorage.getItem('user') || '{}');
+      if (currentSponsor && currentSponsor.USER_ID) {
+        localStorage.setItem('sponsor_original_user', JSON.stringify(currentSponsor));
+      }
+
+      localStorage.setItem("user", JSON.stringify(targetUser));
+      localStorage.setItem("isLoggedIn", "true");
+      setMessage(`Now emulating ${targetUser.F_NAME} ${targetUser.L_NAME} (${targetUser.USERNAME})`);
+      setMessageType("success");
+
+      setTimeout(() => {
+        navigate("/");
+        window.location.reload();
+      }, 700);
+    } catch (err) {
+      console.error("Emulation error:", err);
+      setMessage("Emulation failed");
+      setMessageType("error");
+    }
+  };
+
   return (
     <div>
       <Banner />
@@ -324,6 +400,45 @@ function SponsorProfilePage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* --- EMULATE DRIVER --- */}
+      <div style={{
+        marginTop: '2rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '1rem'
+      }}>
+        <h2>Emulate Driver</h2>
+        {assignedDrivers.length > 0 ? (
+          <div>
+            <select
+              value={selectedDriver}
+              onChange={(e) => setSelectedDriver(e.target.value)}
+            >
+              <option value="">Select a driver...</option>
+              {assignedDrivers.map(d => (
+                <option key={d.USER_ID} value={d.USER_ID}>
+                  {d.F_NAME} {d.L_NAME} ({d.USERNAME})
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={!selectedDriver}
+              onClick={() => emulateDriver(selectedDriver)}
+            >
+              Emulate Driver
+            </button>
+          </div>
+        ) : (
+          <p>No drivers assigned to your organization</p>
+        )}
+      </div>
+
+      {/* --- LOGOUT BUTTON --- */}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
+        <button onClick={handleLogout}>Logout</button>
       </div>
     </div>
   );

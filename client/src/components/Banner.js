@@ -5,91 +5,127 @@ function Banner() {
   const navigate = useNavigate();
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
+  // The active user (may be emulated)
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  // Only exists when admin is emulating someone
+  const adminOriginal = JSON.parse(localStorage.getItem('admin_original_user') || 'null');
+
+  // Only exists when sponsor is emulating a driver
+  const sponsorOriginal = JSON.parse(localStorage.getItem('sponsor_original_user') || 'null');
+
+  const isEmulating = Boolean((adminOriginal && adminOriginal.USER_ID !== user.USER_ID) || (sponsorOriginal && sponsorOriginal.USER_ID !== user.USER_ID));
+
   const handleLogout = () => {
+    localStorage.removeItem('user');
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('admin_original_user'); // safety
+    localStorage.removeItem('sponsor_original_user'); // safety
     navigate('/');
   };
 
   const goProfile = () => {
-    if (isLoggedIn) {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userType = user?.USER_TYPE;
-      
-      if (userType === 'admin') {
-        navigate('/admin');
-      } else if (userType === 'sponsor') {
-        navigate('/sponsor');
-      } else {
-        navigate('/profile');
-      }
-    } else {
+    if (!isLoggedIn) {
       navigate('/login', { state: { redirectTo: '/profile' } });
+      return;
     }
+
+    if (isEmulating) {
+      navigate('/profile');
+      return;
+    }
+
+    if (user.USER_TYPE === 'admin') navigate('/admin');
+    else if (user.USER_TYPE === 'sponsor') navigate('/sponsor');
+    else navigate('/profile');
   };
 
   const goCatalog = () => {
-    if (isLoggedIn) {
-      navigate('/catalog');
-    } else {
+    if (!isLoggedIn) {
       navigate('/login', { state: { redirectTo: '/catalog' } });
+      return;
     }
+    navigate('/catalog');
   };
 
   const goNotifications = () => {
-    if (isLoggedIn) {
-      navigate('/notifications');
-    } else {
+    if (!isLoggedIn) {
       navigate('/login', { state: { redirectTo: '/notifications' } });
+      return;
     }
+    navigate('/notifications');
   };
 
   const goPoints = () => {
-    if (isLoggedIn) {
-      navigate('/points');
-    } else {
+    if (!isLoggedIn) {
       navigate('/login', { state: { redirectTo: '/points' } });
+      return;
     }
+    navigate('/points');
   };
 
   const goOrganizations = () => {
-    if (isLoggedIn) {
-      navigate('/organizations');
-    } else {
+    if (!isLoggedIn) {
       navigate('/login', { state: { redirectTo: '/organizations' } });
+      return;
     }
+    navigate('/organizations');
+  };
+
+  // Restore admin or sponsor session
+  const returnToOriginal = () => {
+    if (adminOriginal) {
+      localStorage.setItem('user', JSON.stringify(adminOriginal));
+      localStorage.removeItem('admin_original_user');
+      navigate('/admin');
+    } else if (sponsorOriginal) {
+      localStorage.setItem('user', JSON.stringify(sponsorOriginal));
+      localStorage.removeItem('sponsor_original_user');
+      navigate('/sponsor');
+    }
+    window.location.reload();
   };
 
   return (
     <div className="banner">
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <h1>Talladega Nights</h1>
+
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => navigate('/')}>Home</button>
-          {isLoggedIn === true ? (
+
+          {isLoggedIn && (
             <>
               <button onClick={goCatalog}>Catalog</button>
             </>
-          ) : null}
+          )}
         </div>
       </div>
+
       <div className="button-row" style={{ display: 'flex', gap: '8px' }}>
         {isLoggedIn ? (
           <>
             <button onClick={goProfile}>Profile</button>
             <button onClick={goNotifications}>Notifications</button>
-            {(() => {
-              const user = JSON.parse(localStorage.getItem('user') || '{}');
-              return user?.USER_TYPE === 'admin' ? <button onClick={goOrganizations}>Organizations</button> : null;
-            })()}
-            {(() => {
-              const user = JSON.parse(localStorage.getItem('user') || '{}');
-              return (user?.USER_TYPE === 'admin' || user?.USER_TYPE === 'sponsor') ? <button onClick={goPoints}>Points</button> : null;
-            })()}
-            {(() => {
-              const user = JSON.parse(localStorage.getItem('user') || '{}');
-              // Show "My Organization" for sponsors who are in an organization OR users with ORG_ID
-              return (user?.USER_TYPE === 'sponsor' || user?.ORG_ID) ? <button onClick={goOrganizations}>My Organization</button> : null;
-            })()}
+
+            {/* Admin or Sponsor = can view points */}
+            {(user.USER_TYPE === 'admin' || user.USER_TYPE === 'sponsor') && (
+              <button onClick={goPoints}>Points</button>
+            )}
+
+            {(user.USER_TYPE === 'admin' || user.USER_TYPE === 'sponsor' || user.ORG_ID) && (
+              <button onClick={goOrganizations}>
+                {user.USER_TYPE === 'admin' ? "Organizations" : "My Organization"}
+              </button>
+            )}
+
+            {/* Return to Original User button ONLY during emulation */}
+            {isEmulating && (
+              <button onClick={returnToOriginal} style={{ backgroundColor: '#ffcc00', fontWeight: 'bold' }}>
+                Return to {adminOriginal ? 'Admin' : 'Sponsor'}
+              </button>
+            )}
+
             <button onClick={handleLogout}>Logout</button>
           </>
         ) : (
