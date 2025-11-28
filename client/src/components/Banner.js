@@ -105,7 +105,7 @@ function Banner() {
             <button onClick={handleLogout}>Logout</button>
           </>
         ) : (
-          <button onClick={() => navigate('/login')}>Login</button>
+          <button onClick={() => navigate('/signup')}>Create Account</button>
         )}
       </div>
     </div>

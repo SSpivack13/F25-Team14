@@ -517,11 +517,11 @@ router.post('/organizations/invite-driver', async (req, res) => {
       [email, org.ORG_ID, inviteToken, user.USER_ID]
     );
 
-    // Send email with Resend (test mode - sends to your email)
+    // Send email with Resend
     const transporter = nodemailer.createTransport({
       host: 'smtp.resend.com',
-      port: 587,
-      secure: false,
+      port: 465,
+      secure: true,
       auth: {
         user: 'resend',
         pass: process.env.RESEND_API_KEY
@@ -532,16 +532,16 @@ router.post('/organizations/invite-driver', async (req, res) => {
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: 'dspivac@g.clemson.edu', // Always send to your email for testing
-      subject: `[TEST] Invitation for ${email} to join ${org.ORG_NAME}`,
+      to: email,
+      subject: `You're invited to join ${org.ORG_NAME}`,
       html: `
-        <h2>TEST EMAIL - Invitation would be sent to: ${email}</h2>
-        <h3>You're invited to join ${org.ORG_NAME}!</h3>
+        <h2>You're invited to join ${org.ORG_NAME}!</h2>
         <p>You've been invited to join our driver program.</p>
-        <p><a href="${inviteUrl}">Click here to sign up</a></p>
-        <p>If the link doesn't work, copy and paste this URL: ${inviteUrl}</p>
-        <hr>
-        <p><small>This is a test email. In production, this would be sent to: ${email}</small></p>
+        <p><a href="${inviteUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Accept Invitation</a></p>
+        <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+        <p>${inviteUrl}</p>
+        <br>
+        <p style="color: #666; font-size: 12px;">If you didn't expect this invitation, you can safely ignore this email.</p>
       `
     });
 

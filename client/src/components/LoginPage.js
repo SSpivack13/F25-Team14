@@ -114,6 +114,11 @@ function LoginPage() {
               Login
             </button>
           </div>
+          <div style={{ marginTop: '10px', textAlign: 'center' }}>
+            <a href="/forgot-password" style={{ color: '#007bff', textDecoration: 'none' }}>
+              Forgot Password?
+            </a>
+          </div>
         </div>
       </div>
     </div>
