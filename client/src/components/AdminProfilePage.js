@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { authHeaders } from '../utils/auth';
 import Banner from './Banner';
+import '../Template.css';
 
 function AdminProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
@@ -33,9 +34,6 @@ function AdminProfilePage() {
     emailNotifications: false
   });
 
-  const [newOrg, setNewOrg] = useState({ ORG_LEADER_ID: '', ORG_NAME: '' });
-
-  const [availableSponsors, setAvailableSponsors] = useState([]);
   const [allSponsors, setAllSponsors] = useState([]);
   const [allDrivers, setAllDrivers] = useState([]);
   const [selectedSponsor, setSelectedSponsor] = useState('');
@@ -45,7 +43,6 @@ function AdminProfilePage() {
 
   // Load all data on mount
   useEffect(() => {
-    fetchAvailableSponsors();
     fetchAllSponsors();
     fetchAllDrivers();
   }, []);
@@ -56,6 +53,7 @@ function AdminProfilePage() {
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('admin_original_user');
     navigate('/');
   };
 
@@ -144,7 +142,8 @@ function AdminProfilePage() {
           USERNAME: editForm.username,
           EMAIL: editForm.email,
           F_NAME: editForm.firstName,
-          L_NAME: editForm.lastName
+          L_NAME: editForm.lastName,
+          PHONE: editForm.phone
         };
 
         localStorage.setItem('user', JSON.stringify(newStoredUser));
@@ -171,22 +170,6 @@ function AdminProfilePage() {
     }));
   };
 
-  // Fetch unassigned sponsors (existing functionality)
-  const fetchAvailableSponsors = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API}/users/unassigned-sponsors`, {
-        headers: authHeaders()
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setAvailableSponsors(data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch sponsors:', err);
-    }
-  };
-
-  // Fetch all sponsors for emulation
   const fetchAllSponsors = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API}/users/all-sponsors`, {
@@ -199,7 +182,6 @@ function AdminProfilePage() {
     }
   };
 
-  // Fetch all drivers for emulation
   const fetchAllDrivers = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API}/users/all-drivers`, {
@@ -212,7 +194,6 @@ function AdminProfilePage() {
     }
   };
 
-  // Emulate a specific user's account
   const emulateUser = async (targetUserId) => {
     try {
       setMessage('');
@@ -221,10 +202,7 @@ function AdminProfilePage() {
         headers: authHeaders()
       });
 
-      // Log raw response for debugging
-      console.log('Emulate fetch response:', response);
       const data = await response.json();
-      console.log('Emulate fetch data:', data);
       if (data.status !== "success" || !data.data) {
         setMessage("Failed to load user profile");
         setMessageType("error");
@@ -233,7 +211,6 @@ function AdminProfilePage() {
 
       const targetUser = data.data;
       
-      // Save current admin profile before switching
       const currentAdmin = JSON.parse(localStorage.getItem('user') || '{}');
       if (currentAdmin && currentAdmin.USER_ID) {
         localStorage.setItem('admin_original_user', JSON.stringify(currentAdmin));
@@ -241,7 +218,6 @@ function AdminProfilePage() {
 
       localStorage.setItem("user", JSON.stringify(targetUser));
       localStorage.setItem("isLoggedIn", "true");
-      console.log("Emulated user:", targetUser);
       setMessage(`Now emulating ${targetUser.F_NAME} ${targetUser.L_NAME} (${targetUser.USERNAME})`);
       setMessageType("success");
 
@@ -254,218 +230,289 @@ function AdminProfilePage() {
       setMessage("Emulation failed");
       setMessageType("error");
     }
-  };  return (
+  };
+
+  return (
     <div>
       <Banner />
-      <div className="profile-container">
-        <div className="profile-header">
+      <div className="template-content">
+        <div className="template-card">
           <h1>Admin Profile</h1>
-          {!isEditing && (
-            <button className="edit-btn" onClick={handleEdit}>Edit Profile</button>
+
+          {message && (
+            <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
+              {message}
+            </div>
           )}
-        </div>
 
-        {message && (
-          <div className={`message ${messageType}`}>{message}</div>
-        )}
-
-        {/* --- PROFILE VIEW --- */}
-        {!isEditing ? (
-          <div className="profile-view">
-            <div className="profile-field">
-              <label>First Name</label>
-              <div className="field-value">{profile.firstName || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Last Name</label>
-              <div className="field-value">{profile.lastName || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Username</label>
-              <div className="field-value">{profile.username}</div>
-            </div>
-            <div className="profile-field">
-              <label>Password</label>
-              <div className="password-field">
-                <div className="field-value">
-                  {showPassword ? profile.password : '••••••••••'}
+          {!isEditing ? (
+            <div>
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.firstName || 'Not provided'}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.lastName || 'Not provided'}
+                    </div>
+                  </div>
                 </div>
-                <button
-                  className="toggle-password-btn"
-                  onClick={() => setShowPassword(!showPassword)}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Username</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.username}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.email || 'Not provided'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Phone</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.phone || 'Not provided'}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Password</label>
+                    <div className="password-field" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px', flex: 1 }}>
+                        {showPassword ? profile.password : '••••••••••'}
+                      </div>
+                      <button 
+                        className="toggle-password-btn"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ padding: '0.5rem 1rem', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-field">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email Notifications</label>
+                  <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                    {profile.emailNotifications ? 'Enabled' : 'Disabled'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem' }}>
+                <button 
+                  onClick={handleEdit}
+                  style={{ padding: '10px 20px', backgroundColor: '#ff9800', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  Edit Profile
                 </button>
               </div>
             </div>
-            <div className="profile-field">
-              <label>Email</label>
-              <div className="field-value">{profile.email || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Phone</label>
-              <div className="field-value">{profile.phone || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Email Notifications</label>
-              <div className="field-value">
-                {profile.emailNotifications ? 'Enabled' : 'Disabled'}
+          ) : (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                  <input
+                    type="text"
+                    value={editForm.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    placeholder="Enter first name"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                  <input
+                    type="text"
+                    value={editForm.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    placeholder="Enter last name"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
-        ) : (
-          /* --- PROFILE EDIT MODE --- */
-          <div className="profile-edit">
-            <div className="form-group">
-              <label>First Name</label>
-              <input
-                type="text"
-                value={editForm.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                placeholder="Enter first name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Last Name</label>
-              <input
-                type="text"
-                value={editForm.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                placeholder="Enter last name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={editForm.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                placeholder="Enter username"
-              />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter email address"
-              />
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input
-                type="tel"
-                value={editForm.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="Enter phone number"
-              />
-            </div>
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editForm.emailNotifications}
-                  onChange={(e) =>
-                    handleInputChange('emailNotifications', e.target.checked)
-                  }
-                />{' '}
-                Send notifications to email
-              </label>
-            </div>
 
-            <div className="password-section">
-              <h3>Change Password</h3>
-              <div className="form-group">
-                <label>New Password</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Username</label>
+                  <input
+                    type="text"
+                    value={editForm.username}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    placeholder="Enter username"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter email address"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Phone</label>
                 <input
-                  type="password"
-                  value={editForm.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  placeholder="Enter new password (leave blank to keep current)"
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="Enter phone number"
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
                 />
               </div>
-              <div className="form-group">
-                <label>Confirm New Password</label>
-                <input
-                  type="password"
-                  value={editForm.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  placeholder="Confirm new password"
-                />
+
+              <div className="form-group" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.emailNotifications}
+                    onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                  />
+                  <span style={{ fontWeight: 'bold' }}>Send notifications to email</span>
+                </label>
+              </div>
+
+              <div style={{ padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '1.5rem' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Change Password</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>New Password</label>
+                    <input
+                      type="password"
+                      value={editForm.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder="Enter new password (leave blank to keep current)"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={editForm.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      placeholder="Confirm new password"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={handleCancel}
+                  style={{ padding: '10px 20px', backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSave}
+                  style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Save Changes
+                </button>
               </div>
             </div>
-            <div className="form-actions">
-              <button className="save-btn" onClick={handleSave}>Save Changes</button>
-              <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
+          )}
+
+          {/* Admin Actions */}
+          <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #eee' }}>
+            <h2>Admin Actions</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+              <button 
+                onClick={() => navigate('/admin/adduser')}
+                style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Add User
+              </button>
+              <button 
+                onClick={() => navigate('/admin/updateuser')}
+                style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Update User
+              </button>
+              <button 
+                onClick={() => navigate('/adjust-points')}
+                style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Adjust Points
+              </button>
             </div>
+
+            <h2>Emulate Account</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                <h3 style={{ marginTop: 0 }}>Emulate Sponsor</h3>
+                <select
+                  value={selectedSponsor}
+                  onChange={(e) => setSelectedSponsor(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                >
+                  <option value="">Select a sponsor...</option>
+                  {allSponsors.map(s => (
+                    <option key={s.USER_ID} value={s.USER_ID}>
+                      {s.F_NAME} {s.L_NAME} ({s.USERNAME})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  disabled={!selectedSponsor}
+                  onClick={() => emulateUser(selectedSponsor)}
+                  style={{ width: '100%', padding: '10px', backgroundColor: selectedSponsor ? '#ff9800' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: selectedSponsor ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
+                >
+                  Emulate Sponsor
+                </button>
+              </div>
+
+              <div style={{ padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                <h3 style={{ marginTop: 0 }}>Emulate Driver</h3>
+                <select
+                  value={selectedDriver}
+                  onChange={(e) => setSelectedDriver(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                >
+                  <option value="">Select a driver...</option>
+                  {allDrivers.map(d => (
+                    <option key={d.USER_ID} value={d.USER_ID}>
+                      {d.F_NAME} {d.L_NAME} ({d.USERNAME})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  disabled={!selectedDriver}
+                  onClick={() => emulateUser(selectedDriver)}
+                  style={{ width: '100%', padding: '10px', backgroundColor: selectedDriver ? '#ff9800' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: selectedDriver ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
+                >
+                  Emulate Driver
+                </button>
+              </div>
+            </div>
+
+            <button 
+              onClick={handleLogout}
+              style={{ marginTop: '2rem', width: '100%', padding: '10px 20px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Logout
+            </button>
           </div>
-        )}
-      </div>
-
-      {/* --- NAVIGATION BUTTONS --- */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
-        <button onClick={() => navigate('/admin/adduser')}>Add User</button>
-        <button onClick={() => navigate('/admin/updateuser')}>Update User</button>
-        <button onClick={() => navigate('/adjust-points')}>Adjust Points</button>
-      </div>
-
-      {/* --- EMULATE SPECIFIC SPONSOR OR DRIVER --- */}
-      <div style={{
-        marginTop: '2rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '1rem'
-      }}>
-        <h2>Emulate Account</h2>
-
-        <div>
-          <h3>Emulate a Sponsor</h3>
-          <select
-            value={selectedSponsor}
-            onChange={(e) => setSelectedSponsor(e.target.value)}
-          >
-            <option value="">Select a sponsor...</option>
-            {allSponsors.map(s => (
-              <option key={s.USER_ID} value={s.USER_ID}>
-                {s.F_NAME} {s.L_NAME} ({s.USERNAME})
-              </option>
-            ))}
-          </select>
-          <button
-            disabled={!selectedSponsor}
-            onClick={() => emulateUser(selectedSponsor)}
-          >
-            Emulate Sponsor
-          </button>
         </div>
-
-        <div>
-          <h3>Emulate a Driver</h3>
-          <select
-            value={selectedDriver}
-            onChange={(e) => setSelectedDriver(e.target.value)}
-          >
-            <option value="">Select a driver...</option>
-            {allDrivers.map(d => (
-              <option key={d.USER_ID} value={d.USER_ID}>
-                {d.F_NAME} {d.L_NAME} ({d.USERNAME})
-              </option>
-            ))}
-          </select>
-          <button
-            disabled={!selectedDriver}
-            onClick={() => emulateUser(selectedDriver)}
-          >
-            Emulate Driver
-          </button>
-        </div>
-      </div>
-
-      {/* --- LOGOUT BUTTON --- */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
-        <button onClick={handleLogout}>Logout</button>
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate, Navigate } from 'react-router-dom';
 import { authHeaders } from '../utils/auth';
+import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
+import '../Template.css';
 
 function SponsorProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
@@ -21,6 +22,7 @@ function SponsorProfilePage() {
     phone: user?.PHONE || user?.phone || '',
     emailNotifications: user?.EMAIL_NOTIFICATIONS || user?.emailNotifications || false
   });
+
   const [editForm, setEditForm] = useState({
     username: '',
     password: '',
@@ -31,73 +33,41 @@ function SponsorProfilePage() {
     phone: '',
     emailNotifications: false
   });
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
-  const [userRole, setUserRole] = useState(user?.USER_TYPE || '');
-  const [loading, setLoading] = useState(true);
-  const [assignedDrivers, setAssignedDrivers] = useState([]);
+  const [driversInOrg, setDriversInOrg] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState('');
 
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
   useEffect(() => {
-    if (!isLoggedIn || !user?.USER_ID) {
-      setLoading(false);
-      return;
+    if (isLoggedIn && user?.USER_ID) {
+      fetchDriversInOrganization();
     }
-
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/profile`, { 
-          headers: authHeaders() 
-        });
-        if (!response.ok) throw new Error('Failed to fetch profile');
-        const data = await response.json();
-        if (data.status === 'success') {
-          const userData = data.data;
-          setUserRole(userData.USER_TYPE);
-          setProfile(prev => ({
-            ...prev,
-            username: userData.USERNAME,
-            email: userData.EMAIL || prev.email,
-            firstName: userData.F_NAME || prev.firstName,
-            lastName: userData.L_NAME || prev.lastName,
-            phone: userData.PHONE || userData.phone || prev.phone
-          }));
-        }
-      } catch (err) {
-        console.error('Error fetching sponsor profile:', err);
-        setMessage('Failed to load profile data');
-        setMessageType('error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchAssignedDrivers = async () => {
-      try {
-        const response = await fetch(`${process.env.REACT_APP_API}/users/${user.USER_ID}/organization/drivers`, {
-          headers: authHeaders()
-        });
-        const data = await response.json();
-        if (data.status === 'success') {
-          setAssignedDrivers(data.data || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch assigned drivers:', err);
-      }
-    };
-
-    fetchUserProfile();
-    fetchAssignedDrivers();
-
   }, [isLoggedIn, user?.USER_ID]);
+
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
+
+  const fetchDriversInOrganization = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API}/organizations/my-org/${user.USER_ID}`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.status === 'success' && data.data.drivers) {
+        setDriversInOrg(data.data.drivers);
+      }
+    } catch (err) {
+      console.error('Failed to load drivers:', err);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
   };
-  
+
   const handleEdit = () => {
     setEditForm({
       username: profile.username,
@@ -107,11 +77,12 @@ function SponsorProfilePage() {
       firstName: profile.firstName,
       lastName: profile.lastName,
       phone: profile.phone,
-      emailNotifications: profile.emailNotifications || false
+      emailNotifications: profile.emailNotifications
     });
     setIsEditing(true);
     setMessage('');
   };
+
   const handleCancel = () => {
     setIsEditing(false);
     setEditForm({
@@ -119,9 +90,9 @@ function SponsorProfilePage() {
       password: '',
       confirmPassword: '',
       email: '',
+      phone: '',
       firstName: '',
       lastName: '',
-      phone: '',
       emailNotifications: false
     });
     setMessage('');
@@ -143,24 +114,23 @@ function SponsorProfilePage() {
       setMessageType('error');
       return;
     }
-    if (editForm.phone && !/^[-+()\s\d]{7,}$/.test(editForm.phone)) {
-      setMessage('Please enter a valid phone number');
-      setMessageType('error');
-      return;
-    }
+
     const payload = {
       USERNAME: editForm.username,
       EMAIL: editForm.email,
       F_NAME: editForm.firstName,
-      L_NAME: editForm.lastName,
-      PHONE: editForm.phone
+      L_NAME: editForm.lastName
     };
-
-    if (editForm.password) payload.PASSWORD = editForm.password;
+    if (editForm.phone) {
+      payload.PHONE = editForm.phone;
+    }
+    if (editForm.password) {
+      payload.PASSWORD = editForm.password;
+    }
 
     try {
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = storedUser?.USER_ID;
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user?.USER_ID;
       if (!userId) throw new Error('Missing user ID');
 
       const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, payload);
@@ -172,11 +142,11 @@ function SponsorProfilePage() {
           firstName: editForm.firstName,
           lastName: editForm.lastName,
           phone: editForm.phone,
-          emailNotifications: editForm.emailNotifications || false
         };
         setProfile(updatedProfile);
-        const newStoredUser = { ...storedUser, USERNAME: editForm.username, EMAIL: editForm.email, F_NAME: editForm.firstName, L_NAME: editForm.lastName };
-        newStoredUser.EMAIL_NOTIFICATIONS = editForm.emailNotifications || false;
+
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const newStoredUser = { ...storedUser, USERNAME: editForm.username, EMAIL: editForm.email, F_NAME: editForm.firstName, L_NAME: editForm.lastName, PHONE: editForm.phone };
         localStorage.setItem('user', JSON.stringify(newStoredUser));
 
         setIsEditing(false);
@@ -188,11 +158,12 @@ function SponsorProfilePage() {
         setMessageType('error');
       }
     } catch (err) {
-      console.error('Error updating sponsor profile:', err);
+      console.error('Error updating profile:', err);
       setMessage('Failed to update profile');
       setMessageType('error');
     }
   };
+
   const handleInputChange = (field, value) => {
     setEditForm(prev => ({
       ...prev,
@@ -200,245 +171,280 @@ function SponsorProfilePage() {
     }));
   };
 
-  // Load drivers when component mounts
-  const fetchAssignedDriversOld = async () => {
-    try {
-      const sponsorUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (!sponsorUser?.USER_ID) return;
-
-      const response = await fetch(`${process.env.REACT_APP_API}/users/${sponsorUser.USER_ID}/organization/drivers`, {
-        headers: authHeaders()
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setAssignedDrivers(data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch assigned drivers:', err);
-    }
-  };
-
-  // Emulate a driver assigned to sponsor's organization
-  const emulateDriver = async (targetUserId) => {
+  const emulateDriver = async (driverId) => {
     try {
       setMessage('');
       setMessageType('');
-      const response = await fetch(`${process.env.REACT_APP_API}/users/${targetUserId}/profile`, {
+      const response = await fetch(`${process.env.REACT_APP_API}/users/${driverId}/profile`, {
         headers: authHeaders()
       });
 
       const data = await response.json();
-      if (data.status !== "success" || !data.data) {
-        setMessage("Failed to load driver profile");
-        setMessageType("error");
+      if (data.status !== 'success' || !data.data) {
+        setMessage('Failed to load driver profile');
+        setMessageType('error');
         return;
       }
 
-      const targetUser = data.data;
-
-      // Save current sponsor profile before switching
+      const driverUser = data.data;
+      
       const currentSponsor = JSON.parse(localStorage.getItem('user') || '{}');
       if (currentSponsor && currentSponsor.USER_ID) {
         localStorage.setItem('sponsor_original_user', JSON.stringify(currentSponsor));
       }
 
-      localStorage.setItem("user", JSON.stringify(targetUser));
-      localStorage.setItem("isLoggedIn", "true");
-      setMessage(`Now emulating ${targetUser.F_NAME} ${targetUser.L_NAME} (${targetUser.USERNAME})`);
-      setMessageType("success");
+      localStorage.setItem('user', JSON.stringify(driverUser));
+      localStorage.setItem('isLoggedIn', 'true');
+      setMessage(`Now emulating ${driverUser.F_NAME} ${driverUser.L_NAME} (${driverUser.USERNAME})`);
+      setMessageType('success');
 
       setTimeout(() => {
-        navigate("/");
+        navigate('/');
         window.location.reload();
       }, 700);
     } catch (err) {
-      console.error("Emulation error:", err);
-      setMessage("Emulation failed");
-      setMessageType("error");
+      console.error('Emulation error:', err);
+      setMessage('Emulation failed');
+      setMessageType('error');
     }
   };
 
   return (
     <div>
       <Banner />
-      <div className="profile-container">
-        <div className="profile-header">
+      <div className="template-content">
+        <div className="template-card">
           <h1>Sponsor Profile</h1>
-          {!isEditing && (
-            <button className="edit-btn" onClick={handleEdit}>
-              Edit Profile
-            </button>
+
+          {message && (
+            <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
+              {message}
+            </div>
           )}
-        </div>
-        {message && (
-          <div className={`message ${messageType}`}>
-            {message}
-          </div>
-        )}
-        {!isEditing ? (
-          <div className="profile-view">
-            <div className="profile-field">
-              <label>First Name</label>
-              <div className="field-value">{profile.firstName || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Last Name</label>
-              <div className="field-value">{profile.lastName || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Username</label>
-              <div className="field-value">{profile.username}</div>
-            </div>
-            <div className="profile-field">
-              <label>Password</label>
-              <div className="password-field">
-                <div className="field-value">
-                  {showPassword ? profile.password : '••••••••••'}
+
+          {!isEditing ? (
+            <div>
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.firstName || 'Not provided'}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.lastName || 'Not provided'}
+                    </div>
+                  </div>
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Username</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.username}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.email || 'Not provided'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Phone</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.phone || 'Not provided'}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Password</label>
+                    <div className="password-field" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px', flex: 1 }}>
+                        {showPassword ? profile.password : '••••••••••'}
+                      </div>
+                      <button 
+                        className="toggle-password-btn"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ padding: '0.5rem 1rem', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-field">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email Notifications</label>
+                  <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                    {profile.emailNotifications ? 'Enabled' : 'Disabled'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem' }}>
                 <button 
-                  className="toggle-password-btn"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={handleEdit}
+                  style={{ padding: '10px 20px', backgroundColor: '#ff9800', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  Edit Profile
+                </button>
+              </div>
+
+              {/* Emulate Driver Section */}
+              {driversInOrg.length > 0 && (
+                <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #eee' }}>
+                  <h2>Emulate Driver</h2>
+                  <div style={{ padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Select a Driver</label>
+                    <select
+                      value={selectedDriver}
+                      onChange={(e) => setSelectedDriver(e.target.value)}
+                      style={{ width: '100%', padding: '8px', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                    >
+                      <option value="">Choose a driver...</option>
+                      {driversInOrg.map(d => (
+                        <option key={d.USER_ID} value={d.USER_ID}>
+                          {d.F_NAME} {d.L_NAME} ({d.USERNAME})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      disabled={!selectedDriver}
+                      onClick={() => emulateDriver(selectedDriver)}
+                      style={{ width: '100%', padding: '10px', backgroundColor: selectedDriver ? '#ff9800' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: selectedDriver ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
+                    >
+                      Emulate Driver
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                  <input
+                    type="text"
+                    value={editForm.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    placeholder="Enter first name"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                  <input
+                    type="text"
+                    value={editForm.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    placeholder="Enter last name"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Username</label>
+                  <input
+                    type="text"
+                    value={editForm.username}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    placeholder="Enter username"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter email address"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Phone</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="Enter phone number"
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.emailNotifications}
+                    onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                  />
+                  <span style={{ fontWeight: 'bold' }}>Send notifications to email</span>
+                </label>
+              </div>
+
+              <div style={{ padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '1.5rem' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Change Password</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>New Password</label>
+                    <input
+                      type="password"
+                      value={editForm.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder="Enter new password (leave blank to keep current)"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={editForm.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      placeholder="Confirm new password"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={handleCancel}
+                  style={{ padding: '10px 20px', backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSave}
+                  style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Save Changes
                 </button>
               </div>
             </div>
-            <div className="profile-field">
-              <label>Email</label>
-              <div className="field-value">{profile.email || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Phone</label>
-              <div className="field-value">{profile.phone || 'Not provided'}</div>
-            </div>
-          </div>
-        ) : (
-          <div className="profile-edit">
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={editForm.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                placeholder="Enter username"
-              />
-            </div>
-            <div className="form-group">
-              <label>First Name</label>
-              <input
-                type="text"
-                value={editForm.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                placeholder="Enter first name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Last Name</label>
-              <input
-                type="text"
-                value={editForm.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                placeholder="Enter last name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter email address"
-              />
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input
-                type="tel"
-                value={editForm.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="Enter phone number"
-              />
-            </div>
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editForm.emailNotifications}
-                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
-                />
-                Send notifications to email
-              </label>
-            </div>
-            <div className="password-section">
-              <h3>Change Password</h3>
-              <div className="form-group">
-                <label>New Password</label>
-                <input
-                  type="password"
-                  value={editForm.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  placeholder="Enter new password (leave blank to keep current)"
-                />
-              </div>
-              <div className="form-group">
-                <label>Confirm New Password</label>
-                <input
-                  type="password"
-                  value={editForm.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  placeholder="Confirm new password"
-                />
-              </div>
-            </div>
-            <div className="form-actions">
-              <button className="save-btn" onClick={handleSave}>
-                Save Changes
-              </button>
-              <button className="cancel-btn" onClick={handleCancel}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* --- EMULATE DRIVER --- */}
-      <div style={{
-        marginTop: '2rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '1rem'
-      }}>
-        <h2>Emulate Driver</h2>
-        {assignedDrivers.length > 0 ? (
-          <div>
-            <select
-              value={selectedDriver}
-              onChange={(e) => setSelectedDriver(e.target.value)}
-            >
-              <option value="">Select a driver...</option>
-              {assignedDrivers.map(d => (
-                <option key={d.USER_ID} value={d.USER_ID}>
-                  {d.F_NAME} {d.L_NAME} ({d.USERNAME})
-                </option>
-              ))}
-            </select>
-            <button
-              disabled={!selectedDriver}
-              onClick={() => emulateDriver(selectedDriver)}
-            >
-              Emulate Driver
-            </button>
-          </div>
-        ) : (
-          <p>No drivers assigned to your organization</p>
-        )}
-      </div>
-
-      {/* --- LOGOUT BUTTON --- */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '1rem', justifyContent: "center" }}>
-        <button onClick={handleLogout}>Logout</button>
+          <button 
+            onClick={handleLogout}
+            style={{ marginTop: '2rem', width: '100%', padding: '10px 20px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   );

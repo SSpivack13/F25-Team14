@@ -3,6 +3,7 @@ import axios from 'axios';
 import { authHeaders } from '../utils/auth';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Banner from './Banner';
+import '../Template.css';
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -96,6 +97,7 @@ function ProfilePage() {
     localStorage.removeItem('isLoggedIn');
     navigate('/');
   };
+  
   const handleEdit = () => {
     setEditForm({
       username: profile.username,
@@ -110,6 +112,7 @@ function ProfilePage() {
     setIsEditing(true);
     setMessage('');
   };
+  
   const handleCancel = () => {
     setIsEditing(false);
     setEditForm({
@@ -192,161 +195,222 @@ function ProfilePage() {
       setMessageType('error');
     }
   };
+  
   const handleInputChange = (field, value) => {
     setEditForm(prev => ({
       ...prev,
       [field]: value
     }));
   };
+  
   return (
     <div>
       <Banner />
-      <div className="profile-container">
-        <div className="profile-header">
+      <div className="template-content">
+        <div className="template-card">
           <h1>{getProfileTitle()}</h1>
-          {!isEditing && (
-            <button className="edit-btn" onClick={handleEdit}>
-              Edit Profile
-            </button>
+          
+          {message && (
+            <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
+              {message}
+            </div>
           )}
-        </div>
-        {message && (
-          <div className={`message ${messageType}`}>
-            {message}
-          </div>
-        )}
-        {!isEditing ? (
-          <div className="profile-view">
-            <div className="profile-field">
-              <label>First Name</label>
-              <div className="field-value">{profile.firstName || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Last Name</label>
-              <div className="field-value">{profile.lastName || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Username</label>
-              <div className="field-value">{profile.username}</div>
-            </div>
-            <div className="profile-field">
-              <label>Password</label>
-              <div className="password-field">
-                <div className="field-value">
-                  {showPassword ? profile.password : '••••••••••'}
+
+          {!isEditing ? (
+            <div>
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.firstName || 'Not provided'}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.lastName || 'Not provided'}
+                    </div>
+                  </div>
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Username</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.username}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.email || 'Not provided'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Phone</label>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      {profile.phone || 'Not provided'}
+                    </div>
+                  </div>
+                  <div className="profile-field">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Password</label>
+                    <div className="password-field" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px', flex: 1 }}>
+                        {showPassword ? profile.password : '••••••••••'}
+                      </div>
+                      <button 
+                        className="toggle-password-btn"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ padding: '0.5rem 1rem', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-field">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email Notifications</label>
+                  <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                    {profile.emailNotifications ? 'Enabled' : 'Disabled'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
-                  className="toggle-password-btn"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={handleEdit}
+                  style={{ padding: '10px 20px', backgroundColor: '#ff9800', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  Edit Profile
+                </button>
+                {userRole === 'admin' && (
+                  <button 
+                    onClick={() => navigate('/updateUser')}
+                    style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Update User Details
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                  <input
+                    type="text"
+                    value={editForm.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    placeholder="Enter first name"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                  <input
+                    type="text"
+                    value={editForm.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    placeholder="Enter last name"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Username</label>
+                  <input
+                    type="text"
+                    value={editForm.username}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    placeholder="Enter username"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter email address"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Phone</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="Enter phone number"
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.emailNotifications}
+                    onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
+                  />
+                  <span style={{ fontWeight: 'bold' }}>Send notifications to email</span>
+                </label>
+              </div>
+
+              <div style={{ padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '1.5rem' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Change Password</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>New Password</label>
+                    <input
+                      type="password"
+                      value={editForm.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder="Enter new password (leave blank to keep current)"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={editForm.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      placeholder="Confirm new password"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={handleCancel}
+                  style={{ padding: '10px 20px', backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSave}
+                  style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Save Changes
                 </button>
               </div>
             </div>
-            <div className="profile-field">
-              <label>Email</label>
-              <div className="field-value">{profile.email || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Phone</label>
-              <div className="field-value">{profile.phone || 'Not provided'}</div>
-            </div>
-            <div className="profile-field">
-              <label>Email Notifications</label>
-              <div className="field-value">{profile.emailNotifications ? 'Enabled' : 'Disabled'}</div>
-            </div>
-            {userRole === 'admin' ?(
-              <button onClick={() =>navigate('/updateUser')}>Update User Details</button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="profile-edit">
-            <div className="form-group">
-              <label>First Name</label>
-              <input
-                type="text"
-                value={editForm.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                placeholder="Enter first name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Last Name</label>
-              <input
-                type="text"
-                value={editForm.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                placeholder="Enter last name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={editForm.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                placeholder="Enter username"
-              />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter email address"
-              />
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input
-                type="tel"
-                value={editForm.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="Enter phone number"
-              />
-            </div>
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editForm.emailNotifications}
-                  onChange={(e) => handleInputChange('emailNotifications', e.target.checked)}
-                />
-                Send notifications to email
-              </label>
-            </div>
-            <div className="password-section">
-              <h3>Change Password</h3>
-              <div className="form-group">
-                <label>New Password</label>
-                <input
-                  type="password"
-                  value={editForm.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  placeholder="Enter new password (leave blank to keep current)"
-                />
-              </div>
-              <div className="form-group">
-                <label>Confirm New Password</label>
-                <input
-                  type="password"
-                  value={editForm.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  placeholder="Confirm new password"
-                />
-              </div>
-            </div>
-            <div className="form-actions">
-              <button className="save-btn" onClick={handleSave}>
-                Save Changes
-              </button>
-              <button className="cancel-btn" onClick={handleCancel}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
