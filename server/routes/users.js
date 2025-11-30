@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../db.js';
 import bcrypt from 'bcrypt';
+import { logAudit, AuditLogTypes, getIpAddress } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
@@ -32,6 +33,16 @@ router.post('/users/add', async (req, res) => {
       'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, 0)',
       [nextUserId, username, hashed, userType, f_name, l_name]
     );
+
+    // Log user creation
+    await logAudit(connection, {
+      logType: AuditLogTypes.USER_CREATED,
+      performedBy: req.userId, // From auth middleware
+      targetUser: nextUserId,
+      ipAddress: getIpAddress(req),
+      details: { username, userType, f_name, l_name, createdBy: 'admin' }
+    });
+
     connection.release();
 
     if (result.affectedRows > 0) {
@@ -107,14 +118,44 @@ router.put('/updateUser/:userId', async (req, res) => {
 
   try {
     const connection = await pool.getConnection();
+
+    // Get old values before update
+    const [oldData] = await connection.execute(
+      'SELECT F_NAME, L_NAME, EMAIL, USERNAME, USER_TYPE, POINT_TOTAL FROM Users WHERE USER_ID = ?',
+      [userId]
+    );
+
     const [result] = await connection.execute(
       `UPDATE Users SET ${updates.join(', ')} WHERE USER_ID = ?`,
       values
     );
-    connection.release();
+
     if (result.affectedRows > 0) {
+      // Determine the type of change for specific audit logging
+      let logType = AuditLogTypes.USER_UPDATED;
+      if (fields.USER_TYPE && oldData[0]?.USER_TYPE !== fields.USER_TYPE) {
+        logType = AuditLogTypes.USER_ROLE_CHANGED;
+      } else if (fields.EMAIL && oldData[0]?.EMAIL !== fields.EMAIL) {
+        logType = AuditLogTypes.USER_EMAIL_CHANGED;
+      } else if (fields.PASSWORD) {
+        logType = AuditLogTypes.PASSWORD_CHANGED;
+      }
+
+      // Log the update
+      await logAudit(connection, {
+        logType,
+        performedBy: req.userId,
+        targetUser: parseInt(userId),
+        ipAddress: getIpAddress(req),
+        oldValue: JSON.stringify(oldData[0]),
+        newValue: JSON.stringify(fields),
+        details: { changedFields: Object.keys(fields) }
+      });
+
+      connection.release();
       res.json({ status: 'success', message: 'User updated successfully' });
     } else {
+      connection.release();
       res.status(404).json({ status: 'error', message: 'User not found' });
     }
   } catch (err) {
@@ -279,6 +320,45 @@ router.post('/users/register-with-invite', async (req, res) => {
       'UPDATE DriverInvitations SET USED_AT = NOW() WHERE INVITE_TOKEN = ?',
       [inviteToken]
     );
+
+    // Log invitation acceptance and user creation
+    await logAudit(connection, {
+      logType: AuditLogTypes.INVITATION_ACCEPTED,
+      performedBy: nextUserId,
+      targetUser: nextUserId,
+      orgId: invite.ORG_ID,
+      ipAddress: getIpAddress(req),
+      details: {
+        username,
+        email,
+        invitedBy: invite.INVITED_BY,
+        invitedEmail: invite.EMAIL
+      }
+    });
+
+    await logAudit(connection, {
+      logType: AuditLogTypes.USER_CREATED,
+      performedBy: nextUserId,
+      targetUser: nextUserId,
+      orgId: invite.ORG_ID,
+      ipAddress: getIpAddress(req),
+      details: {
+        username,
+        email,
+        userType: 'driver',
+        registrationType: 'invitation',
+        invitedBy: invite.INVITED_BY
+      }
+    });
+
+    await logAudit(connection, {
+      logType: AuditLogTypes.USER_ADDED_TO_ORG,
+      performedBy: nextUserId,
+      targetUser: nextUserId,
+      orgId: invite.ORG_ID,
+      ipAddress: getIpAddress(req),
+      details: { username, addedVia: 'invitation' }
+    });
 
     connection.release();
     res.json({ status: 'success', message: 'Account created successfully' });

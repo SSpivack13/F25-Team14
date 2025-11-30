@@ -31,7 +31,7 @@ app.use('/api', verifyToken, notificationsRoutes);
 app.use('/api', verifyToken, pointrulesRoutes);
 app.use('/api/organizations/bulk-upload', verifyToken, upload.single('file'), organizationsRoutes);
 app.use('/api', organizationsRoutes);
-app.use('/api', logsRoutes);
+app.use('/api', verifyToken, logsRoutes);
 app.use('/api', transactionsRoutes);
 
 export default app;

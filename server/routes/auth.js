@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { logAudit, AuditLogTypes, getIpAddress } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
@@ -22,6 +23,12 @@ router.post('/login', async (req, res) => {
     );
 
     if (rows.length === 0) {
+      // Log failed login attempt
+      await logAudit(connection, {
+        logType: AuditLogTypes.LOGIN_FAILED,
+        ipAddress: getIpAddress(req),
+        details: { username, reason: 'User not found' }
+      });
       connection.release();
       return res.status(401).json({ status: 'error', message: 'Invalid username or password' });
     }
@@ -31,15 +38,25 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, hashed);
 
     if (!match) {
+      // Log failed login attempt
+      await logAudit(connection, {
+        logType: AuditLogTypes.LOGIN_FAILED,
+        targetUser: user.USER_ID,
+        ipAddress: getIpAddress(req),
+        details: { username, reason: 'Invalid password' }
+      });
       connection.release();
       return res.status(401).json({ status: 'error', message: 'Invalid username or password' });
     }
 
-    // Login Log audit
-    await connection.execute(
-      'INSERT INTO AuditLog (LOG_TYPE, USER_ID, TRANS_ID, LOG_DATE) VALUES (?, ?, NULL, NOW())',
-      ['LOGIN', user.USER_ID]
-    );
+    // Log successful login
+    await logAudit(connection, {
+      logType: AuditLogTypes.LOGIN,
+      performedBy: user.USER_ID,
+      targetUser: user.USER_ID,
+      ipAddress: getIpAddress(req),
+      details: { username }
+    });
     connection.release();
 
     // Issue JWT token
@@ -119,6 +136,14 @@ router.post('/forgot-password', async (req, res) => {
       `
     });
 
+    // Log password reset request
+    await logAudit(connection, {
+      logType: AuditLogTypes.PASSWORD_RESET_REQUESTED,
+      targetUser: user.USER_ID,
+      ipAddress: getIpAddress(req),
+      details: { email }
+    });
+
     connection.release();
     res.json({ status: 'success', message: 'If an account with that email exists, a password reset link has been sent.' });
   } catch (err) {
@@ -164,11 +189,14 @@ router.post('/reset-password', async (req, res) => {
       [hashedPassword, user.USER_ID]
     );
 
-    // Log password reset in audit log
-    await connection.execute(
-      'INSERT INTO AuditLog (LOG_TYPE, USER_ID, TRANS_ID, LOG_DATE) VALUES (?, ?, NULL, NOW())',
-      ['PASSWORD_RESET', user.USER_ID]
-    );
+    // Log password reset completion
+    await logAudit(connection, {
+      logType: AuditLogTypes.PASSWORD_RESET_COMPLETED,
+      performedBy: user.USER_ID,
+      targetUser: user.USER_ID,
+      ipAddress: getIpAddress(req),
+      details: { username: user.USERNAME }
+    });
 
     connection.release();
     res.json({ status: 'success', message: 'Password has been reset successfully. You can now login with your new password.' });
@@ -233,10 +261,13 @@ router.post('/register', async (req, res) => {
     );
 
     // Log account creation
-    await connection.execute(
-      'INSERT INTO AuditLog (LOG_TYPE, USER_ID, TRANS_ID, LOG_DATE) VALUES (?, ?, NULL, NOW())',
-      ['ACCOUNT_CREATED', nextUserId]
-    );
+    await logAudit(connection, {
+      logType: AuditLogTypes.USER_CREATED,
+      performedBy: nextUserId,
+      targetUser: nextUserId,
+      ipAddress: getIpAddress(req),
+      details: { username, email, userType: 'driver', registrationType: 'public' }
+    });
 
     connection.release();
     res.json({ status: 'success', message: 'Account created successfully! You can now login.' });

@@ -3,6 +3,7 @@ import pool from '../db.js';
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { logAudit, AuditLogTypes, getIpAddress } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
@@ -82,6 +83,19 @@ router.post('/organizations/add', async (req, res) => {
       'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
       [supervisorUser.USER_ID, nextOrgId]
     );
+
+    // Log organization creation
+    await logAudit(connection, {
+      logType: AuditLogTypes.ORG_CREATED,
+      performedBy: user.USER_ID,
+      orgId: nextOrgId,
+      ipAddress: getIpAddress(req),
+      details: {
+        orgName: ORG_NAME,
+        leaderId: ORG_LEADER_ID,
+        leaderUsername: supervisorUser.USERNAME
+      }
+    });
 
     connection.release();
 
@@ -322,17 +336,34 @@ router.put('/organization/:orgId/catalog', async (req, res) => {
     }
     // If admin, no need to check ownership - they can update any organization
 
+    // Get old catalog values
+    const [oldCatalog] = await connection.execute(
+      'SELECT product1, product2, product3, product4, product5 FROM Organizations WHERE ORG_ID = ?',
+      [orgId]
+    );
+
     // Update organization with selected products
     const [result] = await connection.execute(
       'UPDATE Organizations SET product1 = ?, product2 = ?, product3 = ?, product4 = ?, product5 = ? WHERE ORG_ID = ?',
       [product1, product2, product3, product4, product5, orgId]
     );
 
-    connection.release();
-
     if (result.affectedRows > 0) {
+      // Log catalog update
+      await logAudit(connection, {
+        logType: AuditLogTypes.ORG_CATALOG_UPDATED,
+        performedBy: user.USER_ID,
+        orgId: parseInt(orgId),
+        ipAddress: getIpAddress(req),
+        oldValue: JSON.stringify(oldCatalog[0]),
+        newValue: JSON.stringify({ product1, product2, product3, product4, product5 }),
+        details: { performedByType: user.USER_TYPE }
+      });
+
+      connection.release();
       res.json({ status: 'success', message: 'Catalog updated successfully' });
     } else {
+      connection.release();
       res.status(404).json({ status: 'error', message: 'Organization not found' });
     }
   } catch (err) {
@@ -394,6 +425,16 @@ router.post('/organizations/add-driver', async (req, res) => {
       [driverId, orgId]
     );
 
+    // Log driver added to organization
+    await logAudit(connection, {
+      logType: AuditLogTypes.USER_ADDED_TO_ORG,
+      performedBy: user.USER_ID,
+      targetUser: driverId,
+      orgId: orgId,
+      ipAddress: getIpAddress(req),
+      details: { addedBy: 'sponsor' }
+    });
+
     connection.release();
     res.json({ status: 'success', message: 'Driver added to organization successfully' });
   } catch (err) {
@@ -434,11 +475,21 @@ router.delete('/organizations/remove-driver/:driverId', async (req, res) => {
       [driverId, orgId]
     );
 
-    connection.release();
-
     if (result.affectedRows > 0) {
+      // Log driver removal from organization
+      await logAudit(connection, {
+        logType: AuditLogTypes.USER_REMOVED_FROM_ORG,
+        performedBy: user.USER_ID,
+        targetUser: parseInt(driverId),
+        orgId: orgId,
+        ipAddress: getIpAddress(req),
+        details: { removedBy: 'sponsor' }
+      });
+
+      connection.release();
       res.json({ status: 'success', message: 'Driver removed from organization successfully' });
     } else {
+      connection.release();
       res.status(404).json({ status: 'error', message: 'Driver not found in organization' });
     }
   } catch (err) {
@@ -507,11 +558,24 @@ router.delete('/organizations/:orgId', async (req, res) => {
       [orgId]
     );
 
-    connection.release();
-
     if (result.affectedRows > 0) {
+      // Log organization deletion
+      await logAudit(connection, {
+        logType: AuditLogTypes.ORG_DELETED,
+        performedBy: user.USER_ID,
+        orgId: parseInt(orgId),
+        ipAddress: getIpAddress(req),
+        details: {
+          orgName: orgData[0].ORG_NAME,
+          leaderId: orgData[0].ORG_LEADER_ID,
+          deletedWithPasswordConfirmation: true
+        }
+      });
+
+      connection.release();
       res.json({ status: 'success', message: 'Organization deleted successfully' });
     } else {
+      connection.release();
       res.status(500).json({ status: 'error', message: 'Failed to delete organization' });
     }
   } catch (err) {
@@ -583,6 +647,18 @@ router.post('/organizations/invite-driver', async (req, res) => {
         <br>
         <p style="color: #666; font-size: 12px;">If you didn't expect this invitation, you can safely ignore this email.</p>
       `
+    });
+
+    // Log invitation sent
+    await logAudit(connection, {
+      logType: AuditLogTypes.INVITATION_SENT,
+      performedBy: user.USER_ID,
+      orgId: org.ORG_ID,
+      ipAddress: getIpAddress(req),
+      details: {
+        invitedEmail: email,
+        orgName: org.ORG_NAME
+      }
     });
 
     connection.release();
@@ -858,17 +934,42 @@ router.put('/organizations/update-driver-points', async (req, res) => {
       orgId = requestedOrgId;
     }
 
+    // Get current points before update
+    const [currentPoints] = await connection.execute(
+      'SELECT POINT_TOTAL FROM UserOrganizations WHERE USER_ID = ? AND ORG_ID = ?',
+      [driverId, orgId]
+    );
+
     // Update driver's points in UserOrganizations
     const [result] = await connection.execute(
       'UPDATE UserOrganizations SET POINT_TOTAL = COALESCE(POINT_TOTAL, 0) + ? WHERE USER_ID = ? AND ORG_ID = ?',
       [pointsDelta, driverId, orgId]
     );
 
-    connection.release();
-
     if (result.affectedRows > 0) {
+      const oldPoints = currentPoints[0]?.POINT_TOTAL || 0;
+      const newPoints = oldPoints + pointsDelta;
+
+      // Log the points transaction
+      await logAudit(connection, {
+        logType: pointsDelta > 0 ? AuditLogTypes.POINTS_ADDED : AuditLogTypes.POINTS_DEDUCTED,
+        performedBy: user.USER_ID,
+        targetUser: driverId,
+        orgId: orgId,
+        oldValue: oldPoints.toString(),
+        newValue: newPoints.toString(),
+        ipAddress: getIpAddress(req),
+        details: {
+          pointsDelta,
+          reason: req.body.reason || 'Manual adjustment',
+          performedByType: user.USER_TYPE
+        }
+      });
+
+      connection.release();
       res.json({ status: 'success', message: 'Points updated successfully' });
     } else {
+      connection.release();
       res.status(400).json({ status: 'error', message: 'Driver not found in organization' });
     }
   } catch (err) {

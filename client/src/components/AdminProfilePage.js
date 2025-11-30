@@ -39,12 +39,24 @@ function AdminProfilePage() {
   const [selectedSponsor, setSelectedSponsor] = useState('');
   const [selectedDriver, setSelectedDriver] = useState('');
 
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logFilters, setLogFilters] = useState({
+    log_type: '',
+    user_id: '',
+    start_date: '',
+    end_date: ''
+  });
+
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
   // Load all data on mount
   useEffect(() => {
     fetchAllSponsors();
     fetchAllDrivers();
+    fetchAuditLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!isLoggedIn) {
@@ -191,6 +203,65 @@ function AdminProfilePage() {
       if (data.status === 'success') setAllDrivers(data.data);
     } catch (err) {
       console.error("Failed to load drivers:", err);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoadingLogs(true);
+      const params = new URLSearchParams({
+        requester_id: user.USER_ID,
+        ...Object.fromEntries(Object.entries(logFilters).filter(([_, v]) => v !== ''))
+      });
+
+      const response = await fetch(`${process.env.REACT_APP_API}/auditlogs?${params}`, {
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setAuditLogs(data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to load audit logs:", err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  const handleFilterChange = (field, value) => {
+    setLogFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const applyFilters = () => {
+    fetchAuditLogs();
+  };
+
+  const clearFilters = () => {
+    setLogFilters({
+      log_type: '',
+      user_id: '',
+      start_date: '',
+      end_date: ''
+    });
+    setTimeout(() => fetchAuditLogs(), 100);
+  };
+
+  const formatLogDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleString();
+  };
+
+  const formatLogDetails = (details) => {
+    if (!details) return '';
+    try {
+      const parsed = typeof details === 'string' ? JSON.parse(details) : details;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return String(details);
     }
   };
 
@@ -436,19 +507,19 @@ function AdminProfilePage() {
           <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #eee' }}>
             <h2>Admin Actions</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-              <button 
+              <button
                 onClick={() => navigate('/admin/adduser')}
                 style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Add User
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/admin/updateuser')}
                 style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Update User
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/adjust-points')}
                 style={{ padding: '10px 20px', backgroundColor: '#2196f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
@@ -456,7 +527,125 @@ function AdminProfilePage() {
               </button>
             </div>
 
-            <h2>Emulate Account</h2>
+            {/* Audit Logs Section */}
+            <h2>Audit Logs</h2>
+            <div style={{ marginBottom: '2rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>Log Type</label>
+                  <select
+                    value={logFilters.log_type}
+                    onChange={(e) => handleFilterChange('log_type', e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  >
+                    <option value="">All Types</option>
+                    <option value="LOGIN">Login</option>
+                    <option value="LOGIN_FAILED">Login Failed</option>
+                    <option value="USER_CREATED">User Created</option>
+                    <option value="USER_UPDATED">User Updated</option>
+                    <option value="USER_ROLE_CHANGED">Role Changed</option>
+                    <option value="POINTS_ADDED">Points Added</option>
+                    <option value="POINTS_DEDUCTED">Points Deducted</option>
+                    <option value="ORG_CREATED">Org Created</option>
+                    <option value="ORG_DELETED">Org Deleted</option>
+                    <option value="INVITATION_SENT">Invitation Sent</option>
+                    <option value="INVITATION_ACCEPTED">Invitation Accepted</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>User ID</label>
+                  <input
+                    type="text"
+                    value={logFilters.user_id}
+                    onChange={(e) => handleFilterChange('user_id', e.target.value)}
+                    placeholder="Filter by user ID"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>Start Date</label>
+                  <input
+                    type="date"
+                    value={logFilters.start_date}
+                    onChange={(e) => handleFilterChange('start_date', e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>End Date</label>
+                  <input
+                    type="date"
+                    value={logFilters.end_date}
+                    onChange={(e) => handleFilterChange('end_date', e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={applyFilters}
+                  style={{ padding: '8px 16px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Apply Filters
+                </button>
+                <button
+                  onClick={clearFilters}
+                  style={{ padding: '8px 16px', backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+
+            {loadingLogs ? (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>Loading audit logs...</div>
+            ) : auditLogs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                No audit logs found
+              </div>
+            ) : (
+              <div style={{ maxHeight: '500px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                    <tr>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>Date/Time</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>Type</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>Performed By</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>Target User</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>Org ID</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>IP Address</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 'bold' }}>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log, idx) => (
+                      <tr key={log.LOG_ID || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: idx % 2 === 0 ? 'white' : '#fafafa' }}>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>{formatLogDate(log.LOG_DATE)}</td>
+                        <td style={{ padding: '0.75rem', fontWeight: 'bold', color: log.LOG_TYPE?.includes('FAILED') ? '#f44336' : '#333' }}>
+                          {log.LOG_TYPE}
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>{log.PERFORMED_BY_USER_ID || '-'}</td>
+                        <td style={{ padding: '0.75rem' }}>{log.TARGET_USER_ID || '-'}</td>
+                        <td style={{ padding: '0.75rem' }}>{log.ORG_ID || '-'}</td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{log.IP_ADDRESS || '-'}</td>
+                        <td style={{ padding: '0.75rem', maxWidth: '200px' }}>
+                          {log.DETAILS ? (
+                            <details style={{ cursor: 'pointer' }}>
+                              <summary style={{ fontWeight: 'bold', color: '#2196f3' }}>View</summary>
+                              <pre style={{ fontSize: '0.75rem', marginTop: '0.5rem', padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px', overflow: 'auto', maxHeight: '150px' }}>
+                                {formatLogDetails(log.DETAILS)}
+                              </pre>
+                            </details>
+                          ) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h2 style={{ marginTop: '2rem' }}>Emulate Account</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               <div style={{ padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
                 <h3 style={{ marginTop: 0 }}>Emulate Sponsor</h3>

@@ -4,9 +4,9 @@ import pool from '../db.js';
 const router = express.Router();
 
 // Admin: fetch audit logs with optional filters
-// Query params: requester_id (required), start_date, end_date, user_id, log_type
+// Query params: requester_id (required), start_date, end_date, user_id, log_type, org_id
 router.get('/auditlogs', async (req, res) => {
-  const { requester_id, start_date, end_date, user_id, log_type } = req.query;
+  const { requester_id, start_date, end_date, user_id, log_type, org_id } = req.query;
   if (!requester_id) {
     return res.status(400).json({ status: 'error', message: 'requester_id is required' });
   }
@@ -36,16 +36,37 @@ router.get('/auditlogs', async (req, res) => {
       values.push(end_date);
     }
     if (user_id) {
-      where.push('USER_ID = ?');
-      values.push(user_id);
+      where.push('(PERFORMED_BY_USER_ID = ? OR TARGET_USER_ID = ?)');
+      values.push(user_id, user_id);
     }
     if (log_type) {
       where.push('LOG_TYPE = ?');
       values.push(log_type);
     }
+    if (org_id) {
+      where.push('ORG_ID = ?');
+      values.push(org_id);
+    }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    const [rows] = await connection.query(`SELECT LOG_ID, LOG_TYPE, USER_ID, TRANS_ID, LOG_DATE FROM AuditLog ${whereSql} ORDER BY LOG_DATE DESC`, values);
+    const [rows] = await connection.query(
+      `SELECT
+        LOG_ID,
+        LOG_TYPE,
+        PERFORMED_BY_USER_ID,
+        TARGET_USER_ID,
+        ORG_ID,
+        TRANS_ID,
+        OLD_VALUE,
+        NEW_VALUE,
+        IP_ADDRESS,
+        DETAILS,
+        LOG_DATE
+      FROM AuditLog ${whereSql}
+      ORDER BY LOG_DATE DESC
+      LIMIT 1000`,
+      values
+    );
     connection.release();
     return res.json({ status: 'success', data: rows });
   } catch (err) {
