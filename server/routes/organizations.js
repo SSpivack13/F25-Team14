@@ -425,6 +425,21 @@ router.post('/organizations/add-driver', async (req, res) => {
       [driverId, orgId]
     );
 
+    // Log initial points=0 for the driver in this organization
+    await logAudit(connection, {
+      logType: AuditLogTypes.POINTS_ADDED,
+      performedBy: user.USER_ID,
+      targetUser: driverId,
+      orgId: orgId,
+      oldValue: '0',
+      newValue: '0',
+      ipAddress: getIpAddress(req),
+      details: {
+        pointsDelta: 0,
+        reason: 'initial assignment'
+      }
+    });
+
     // Log driver added to organization
     await logAudit(connection, {
       logType: AuditLogTypes.USER_ADDED_TO_ORG,
@@ -873,6 +888,22 @@ router.post('/organizations/bulk-upload', async (req, res) => {
             'INSERT INTO UserOrganizations (USER_ID, ORG_ID) VALUES (?, ?)',
             [newUserId, targetOrgId]
           );
+
+          // Log initial points=0 for the user in this organization
+          await logAudit(connection, {
+            logType: AuditLogTypes.POINTS_ADDED,
+            performedBy: parseInt(userId),
+            targetUser: newUserId,
+            orgId: targetOrgId,
+            oldValue: '0',
+            newValue: '0',
+            ipAddress: getIpAddress(req),
+            details: {
+              pointsDelta: 0,
+              reason: 'initial assignment via bulk upload',
+              performedByType: userType
+            }
+          });
         } else {
           // already in org — treat as non-fatal
         }

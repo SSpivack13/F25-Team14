@@ -315,6 +315,21 @@ router.post('/users/register-with-invite', async (req, res) => {
       [nextUserId, invite.ORG_ID]
     );
 
+    // Log initial points=0 for the user in this organization
+    await logAudit(connection, {
+      logType: AuditLogTypes.POINTS_ADDED,
+      performedBy: nextUserId,
+      targetUser: nextUserId,
+      orgId: invite.ORG_ID,
+      oldValue: '0',
+      newValue: '0',
+      ipAddress: getIpAddress(req),
+      details: {
+        pointsDelta: 0,
+        reason: 'initial assignment via invitation'
+      }
+    });
+
     // Mark invitation as used
     await connection.execute(
       'UPDATE DriverInvitations SET USED_AT = NOW() WHERE INVITE_TOKEN = ?',
