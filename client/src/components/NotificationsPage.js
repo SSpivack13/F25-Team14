@@ -55,11 +55,28 @@ function NotificationsPage() {
   }, []);
 
   const [myDriverOrgs, setMyDriverOrgs] = useState([]);
+  const [orgUsers, setOrgUsers] = useState([]);
+
   useEffect(() => {
     if (user?.USER_TYPE === 'driver' && user?.USER_ID) {
       axios.get(`${process.env.REACT_APP_API}/driver/${user.USER_ID}/organizations`, { headers: authHeaders() })
         .then(res => { if (res.data?.status === 'success') setMyDriverOrgs(res.data.data || []); })
         .catch(() => {});
+    }
+  }, [user?.USER_TYPE, user?.USER_ID]);
+
+  // Fetch users in sponsor's organization for dropdown
+  useEffect(() => {
+    if (user?.USER_TYPE === 'sponsor' && user?.USER_ID) {
+      axios.get(`${process.env.REACT_APP_API}/users/${user.USER_ID}/organization/drivers`, { headers: authHeaders() })
+        .then(res => {
+          if (res.data?.status === 'success') {
+            setOrgUsers(res.data.data || []);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch organization users:', err);
+        });
     }
   }, [user?.USER_TYPE, user?.USER_ID]);
 
@@ -115,10 +132,25 @@ function NotificationsPage() {
           <label>Recipients</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label>
-              <input type="radio" name="recipients" checked={recipients.mode === 'single'} onChange={() => setRecipients({ mode: 'single', value: '' })} /> Single USER_ID
+              <input type="radio" name="recipients" checked={recipients.mode === 'single'} onChange={() => setRecipients({ mode: 'single', value: '' })} /> Single User
             </label>
             {recipients.mode === 'single' && (
-              <input placeholder="USER_ID" value={recipients.value} onChange={(e) => setRecipients({ ...recipients, value: e.target.value })} />
+              user?.USER_TYPE === 'sponsor' && orgUsers.length > 0 ? (
+                <select
+                  value={recipients.value}
+                  onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
+                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                >
+                  <option value="">-- Select a user --</option>
+                  {orgUsers.map(u => (
+                    <option key={u.USER_ID} value={u.USER_ID}>
+                      {u.F_NAME} {u.L_NAME} ({u.USERNAME})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input placeholder="USER_ID" value={recipients.value} onChange={(e) => setRecipients({ ...recipients, value: e.target.value })} />
+              )
             )}
 
             <label>

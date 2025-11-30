@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../db.js';
+import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
@@ -98,6 +99,50 @@ router.post('/notifications/send', async (req, res) => {
       `INSERT INTO Notifications (NOTIF_ID, USER_ID, NOTIF_TYPE, NOTIF_CONTENT) VALUES ${placeholders}`,
       flatValues
     );
+
+    // Send emails to recipients
+    try {
+      // Get user emails
+      const emailPlaceholders = userIds.map(() => '?').join(', ');
+      const [userEmails] = await connection.query(
+        `SELECT USER_ID, EMAIL, F_NAME, L_NAME FROM Users WHERE USER_ID IN (${emailPlaceholders})`,
+        userIds
+      );
+
+      // Configure email transporter
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.resend.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: 'resend',
+          pass: process.env.RESEND_API_KEY
+        }
+      });
+
+      // Send email to each recipient
+      const emailPromises = userEmails.map(user => {
+        return transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.EMAIL,
+          subject: `Notification: ${type}`,
+          html: `
+            <h2>New Notification</h2>
+            <p>Hello ${user.F_NAME || 'User'},</p>
+            <p><strong>Type:</strong> ${type}</p>
+            <p><strong>Message:</strong> ${content}</p>
+            <br>
+            <p style="color: #666; font-size: 12px;">This is an automated notification from the system.</p>
+          `
+        });
+      });
+
+      await Promise.all(emailPromises);
+      console.log(`Sent ${emailPromises.length} notification emails`);
+    } catch (emailErr) {
+      console.error('Error sending notification emails:', emailErr);
+      // Don't fail the request if emails fail - notifications are already saved
+    }
 
     connection.release();
     res.json({ status: 'success', message: 'Notification sent', notifId, recipients: userIds.length });
