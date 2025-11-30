@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Banner from './Banner';
+import '../Template.css';
 
 function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -80,6 +81,9 @@ function RegisterPage() {
         setTimeout(() => {
           navigate('/login');
         }, 2000);
+      } else {
+        setMessage(response.data?.message || 'Registration failed.');
+        setMessageType('error');
       }
     } catch (error) {
       if (error.response) {
@@ -104,19 +108,20 @@ function RegisterPage() {
   return (
     <div>
       <Banner />
-      <div className="profile-container">
-        <div className="profile-header">
+      <div className="template-content">
+        <div className="template-card">
           <h1>Create Driver Account</h1>
-        </div>
-        {message && (
-          <div className={`message ${messageType}`}>
-            {message}
-          </div>
-        )}
-        <div className="profile-edit">
+
+          {message && (
+            <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
+              {message}
+            </div>
+          )}
+
           <p style={{ marginBottom: '20px', color: '#666' }}>
             Sign up to create your driver account and start earning points!
           </p>
+
           <div className="form-group">
             <label>First Name *</label>
             <input
@@ -183,11 +188,13 @@ function RegisterPage() {
               disabled={isSubmitting}
             />
           </div>
-          <div className="form-actions">
+
+          <div className="form-actions" style={{ marginTop: '1rem', display: 'flex', gap: '8px', justifyContent: 'center' }}>
             <button
               className="save-btn"
               onClick={handleSubmit}
               disabled={isSubmitting}
+              style={{ backgroundColor: '#ff9800', color: '#fff' }}
             >
               {isSubmitting ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -199,6 +206,7 @@ function RegisterPage() {
               Cancel
             </button>
           </div>
+
           <div style={{ marginTop: '20px', textAlign: 'center', paddingTop: '15px', borderTop: '1px solid #eee' }}>
             <span style={{ color: '#666' }}>Already have an account? </span>
             <a href="/login" style={{ color: '#007bff', textDecoration: 'none' }}>
