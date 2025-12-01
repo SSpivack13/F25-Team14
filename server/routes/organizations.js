@@ -180,7 +180,7 @@ router.get('/users/:userId/organization/drivers', async (req, res) => {
 
     // Get all drivers in this organization
     const [driverRows] = await connection.execute(`
-      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME
+      SELECT u.USER_ID, u.USERNAME, u.F_NAME, u.L_NAME, u.EMAIL
       FROM Users u
       INNER JOIN UserOrganizations uo ON u.USER_ID = uo.USER_ID
       WHERE uo.ORG_ID = ? AND u.USER_TYPE = 'driver'

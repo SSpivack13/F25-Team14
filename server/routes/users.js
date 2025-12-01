@@ -305,8 +305,8 @@ router.post('/users/register-with-invite', async (req, res) => {
     // Create user
     const hashedPassword = await bcrypt.hash(password, 10);
     await connection.execute(
-      'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, 0)',
-      [nextUserId, username, hashedPassword, 'driver', f_name, l_name]
+      'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, EMAIL, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+      [nextUserId, username, hashedPassword, 'driver', f_name, l_name, email]
     );
 
     // Add user to organization

@@ -56,6 +56,7 @@ function NotificationsPage() {
 
   const [myDriverOrgs, setMyDriverOrgs] = useState([]);
   const [orgUsers, setOrgUsers] = useState([]);
+  const [sponsorOrgId, setSponsorOrgId] = useState(null);
 
   useEffect(() => {
     if (user?.USER_TYPE === 'driver' && user?.USER_ID) {
@@ -65,17 +66,29 @@ function NotificationsPage() {
     }
   }, [user?.USER_TYPE, user?.USER_ID]);
 
-  // Fetch users in sponsor's organization for dropdown
+  // Fetch users in sponsor's organization for dropdown (only those with email)
   useEffect(() => {
     if (user?.USER_TYPE === 'sponsor' && user?.USER_ID) {
-      axios.get(`${process.env.REACT_APP_API}/users/${user.USER_ID}/organization/drivers`, { headers: authHeaders() })
+      // Fetch the sponsor's organization details to get ORG_ID
+      axios.get(`${process.env.REACT_APP_API}/organizations/my-org/${user.USER_ID}`, { headers: authHeaders() })
         .then(res => {
-          if (res.data?.status === 'success') {
-            setOrgUsers(res.data.data || []);
+          if (res.data?.status === 'success' && res.data.data?.organization) {
+            const orgId = res.data.data.organization.ORG_ID;
+            setSponsorOrgId(orgId);
+
+            // Now fetch drivers with the org ID
+            return axios.get(`${process.env.REACT_APP_API}/users/${user.USER_ID}/organization/drivers`, { headers: authHeaders() });
+          }
+        })
+        .then(res => {
+          if (res && res.data?.status === 'success') {
+            // Filter to only include users with an email address
+            const usersWithEmail = (res.data.data || []).filter(u => u.EMAIL && u.EMAIL.trim() !== '');
+            setOrgUsers(usersWithEmail);
           }
         })
         .catch(err => {
-          console.error('Failed to fetch organization users:', err);
+          console.error('Failed to fetch organization data:', err);
         });
     }
   }, [user?.USER_TYPE, user?.USER_ID]);
@@ -86,22 +99,22 @@ function NotificationsPage() {
     if (!form.notif_type.trim() || !form.notif_content.trim()) return setStatus({ type: 'error', message: 'Type and content required' });
 
     let recPayload = null;
-    if (recipients.mode === 'single') {
-      recPayload = { type: 'user', user_id: Number(recipients.value) };
-    } else if (recipients.mode === 'multiple') {
-      const ids = String(recipients.value).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
-      recPayload = { type: 'users', user_ids: ids };
-    } else if (recipients.mode === 'org') {
-      recPayload = { type: 'org', org_id: recipients.value };
+    if (recipients.mode === 'all') {
+      // Send to all users in the organization
+      console.log('Sponsor Org ID:', sponsorOrgId);
+      if (!sponsorOrgId) return setStatus({ type: 'error', message: 'Organization ID not found. Please refresh the page.' });
+      recPayload = { type: 'org', org_id: sponsorOrgId };
     } else {
-      return setStatus({ type: 'error', message: 'Invalid recipient mode' });
+      // Send to single user
+      if (!recipients.value) return setStatus({ type: 'error', message: 'Please select a recipient' });
+      recPayload = { type: 'user', user_id: Number(recipients.value) };
     }
 
     try {
       const payload = { notif_type: form.notif_type, notif_content: form.notif_content, recipients: recPayload };
       const res = await axios.post(`${process.env.REACT_APP_API}/notifications/send`, payload, { headers: authHeaders() });
       if (res.data?.status === 'success') {
-        setStatus({ type: 'success', message: `Sent to ${res.data.recipients} users` });
+        setStatus({ type: 'success', message: `Notification sent successfully to ${res.data.recipients} user(s)` });
         setForm({ notif_type: '', notif_content: '' });
         setRecipients({ mode: 'single', value: '' });
       } else setStatus({ type: 'error', message: res.data?.message || 'Failed' });
@@ -130,41 +143,50 @@ function NotificationsPage() {
           <textarea value={form.notif_content} onChange={(e) => handleChange('notif_content', e.target.value)} rows={5} />
 
           <label>Recipients</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label>
-              <input type="radio" name="recipients" checked={recipients.mode === 'single'} onChange={() => setRecipients({ mode: 'single', value: '' })} /> Single User
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="radio"
+                name="recipientMode"
+                checked={recipients.mode === 'single'}
+                onChange={() => setRecipients({ mode: 'single', value: '' })}
+              />
+              Single User
             </label>
             {recipients.mode === 'single' && (
-              user?.USER_TYPE === 'sponsor' && orgUsers.length > 0 ? (
+              user?.USER_TYPE === 'sponsor' ? (
                 <select
                   value={recipients.value}
                   onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
-                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginLeft: '24px' }}
                 >
                   <option value="">-- Select a user --</option>
                   {orgUsers.map(u => (
                     <option key={u.USER_ID} value={u.USER_ID}>
-                      {u.F_NAME} {u.L_NAME} ({u.USERNAME})
+                      {u.F_NAME} {u.L_NAME} ({u.USERNAME}) - {u.EMAIL}
                     </option>
                   ))}
                 </select>
               ) : (
-                <input placeholder="USER_ID" value={recipients.value} onChange={(e) => setRecipients({ ...recipients, value: e.target.value })} />
+                <input
+                  placeholder="USER_ID"
+                  value={recipients.value}
+                  onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
+                  style={{ marginLeft: '24px' }}
+                />
               )
             )}
 
-            <label>
-              <input type="radio" name="recipients" checked={recipients.mode === 'multiple'} onChange={() => setRecipients({ mode: 'multiple', value: '' })} /> Multiple USER_IDs (CSV)
-            </label>
-            {recipients.mode === 'multiple' && (
-              <input placeholder="e.g. 12,34,56" value={recipients.value} onChange={(e) => setRecipients({ ...recipients, value: e.target.value })} />
-            )}
-
-            <label>
-              <input type="radio" name="recipients" checked={recipients.mode === 'org'} onChange={() => setRecipients({ mode: 'org', value: '' })} /> Entire ORG_ID
-            </label>
-            {recipients.mode === 'org' && (
-              <input placeholder="ORG_ID" value={recipients.value} onChange={(e) => setRecipients({ ...recipients, value: e.target.value })} />
+            {user?.USER_TYPE === 'sponsor' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="radio"
+                  name="recipientMode"
+                  checked={recipients.mode === 'all'}
+                  onChange={() => setRecipients({ mode: 'all', value: '' })}
+                />
+                All Users in My Organization
+              </label>
             )}
           </div>
 

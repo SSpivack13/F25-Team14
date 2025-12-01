@@ -75,8 +75,14 @@ router.post('/notifications/send', async (req, res) => {
       }
       userIds = [userRows[0].USER_ID];
     } else if (recipients.type === 'org' && recipients.org_id) {
-      // Organization-based sending: select users by ORG_ID
-      const [orgUsers] = await connection.execute('SELECT USER_ID FROM Users WHERE ORG_ID = ?', [recipients.org_id]);
+      // Organization-based sending: select users by ORG_ID (only those with email)
+      const [orgUsers] = await connection.execute(
+        `SELECT u.USER_ID
+         FROM Users u
+         INNER JOIN UserOrganizations uo ON u.USER_ID = uo.USER_ID
+         WHERE uo.ORG_ID = ? AND u.EMAIL IS NOT NULL AND u.EMAIL != ""`,
+        [recipients.org_id]
+      );
       userIds = orgUsers.map(u => u.USER_ID);
     } else if (recipients.type === 'users' && Array.isArray(recipients.user_ids)) {
       userIds = recipients.user_ids.map(id => Number(id)).filter(n => !isNaN(n));
