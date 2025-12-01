@@ -24,18 +24,17 @@ function AdminAddUser() {
         password,
         userType,
         f_name,
-        l_name
+        l_name,
+        email
       }, { headers: authHeaders() });
       if (response.data.status === 'success') {
-        const axios = require('axios');
-        const user = { username: username, email: email, password: password };
-        axios.post('https://fakestoreapi.com/users', user).then(response => console.log(response.data));
         setMessage('User created successfully!');
         setMessageType('success');
         setf_name("");
         setl_name("");
         setUsername("");
         setPassword("");
+        setEmail("");
         setUserType("driver");
       }
     } catch (error) {

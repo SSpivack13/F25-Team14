@@ -135,7 +135,7 @@ function AdminProfilePage() {
       const userId = storedUser?.USER_ID;
       if (!userId) throw new Error('Missing user ID');
 
-      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, payload);
+      const res = await axios.put(`${process.env.REACT_APP_API}/updateUser/${userId}`, payload, { headers: authHeaders() });
 
       if (res.data?.status === 'success') {
         const updatedProfile = {

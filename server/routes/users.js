@@ -6,7 +6,7 @@ import { logAudit, AuditLogTypes, getIpAddress } from '../utils/auditLogger.js';
 const router = express.Router();
 
 router.post('/users/add', async (req, res) => {
-  const { username, password, userType, f_name, l_name} = req.body;
+  const { username, password, userType, f_name, l_name, email } = req.body;
 
   if (!username || !password || !userType || !f_name || !l_name) {
     return res.status(400).json({ status: 'error', message: 'All Fields Required' });
@@ -30,8 +30,8 @@ router.post('/users/add', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const [result] = await connection.execute(
-      'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, 0)',
-      [nextUserId, username, hashed, userType, f_name, l_name]
+      'INSERT INTO Users (USER_ID, USERNAME, PASSWORD, USER_TYPE, F_NAME, L_NAME, EMAIL, POINT_TOTAL) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+      [nextUserId, username, hashed, userType, f_name, l_name, email || null]
     );
 
     // Log user creation
@@ -40,7 +40,7 @@ router.post('/users/add', async (req, res) => {
       performedBy: req.userId, // From auth middleware
       targetUser: nextUserId,
       ipAddress: getIpAddress(req),
-      details: { username, userType, f_name, l_name, createdBy: 'admin' }
+      details: { username, userType, f_name, l_name, email, createdBy: 'admin' }
     });
 
     connection.release();
@@ -105,6 +105,12 @@ router.put('/updateUser/:userId', async (req, res) => {
   const allowedFields = ['F_NAME', 'L_NAME', 'EMAIL', 'USERNAME', 'PASSWORD', 'POINT_TOTAL', 'USER_TYPE', 'ORG_ID'];
   const updates = [];
   const values = [];
+
+  // Hash password if it's being updated
+  if (fields.PASSWORD) {
+    fields.PASSWORD = await bcrypt.hash(fields.PASSWORD, 10);
+  }
+
   for (const key of Object.keys(fields)) {
     if (allowedFields.includes(key)) {
       updates.push(`${key} = ?`);
