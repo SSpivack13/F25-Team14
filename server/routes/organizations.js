@@ -647,7 +647,7 @@ router.post('/organizations/invite-driver', async (req, res) => {
       }
     });
 
-    const inviteUrl = `${process.env.CLIENT_URL}/register?invite=${inviteToken}`;
+    const inviteUrl = `${process.env.CLIENT_URL}/register-invite?invite=${inviteToken}`;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,

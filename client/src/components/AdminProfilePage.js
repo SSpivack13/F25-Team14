@@ -7,7 +7,6 @@ import '../Template.css';
 
 function AdminProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const navigate = useNavigate();
@@ -358,18 +357,12 @@ function AdminProfilePage() {
                   </div>
                   <div className="profile-field">
                     <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Password</label>
-                    <div className="password-field" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px', flex: 1 }}>
-                        {showPassword ? profile.password : '••••••••••'}
-                      </div>
-                      <button 
-                        className="toggle-password-btn"
-                        onClick={() => setShowPassword(!showPassword)}
-                        style={{ padding: '0.5rem 1rem', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        {showPassword ? 'Hide' : 'Show'}
-                      </button>
+                    <div className="field-value" style={{ padding: '0.5rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      ••••••••••
                     </div>
+                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
+                      Use "Edit Profile" to change your password
+                    </p>
                   </div>
                 </div>
 

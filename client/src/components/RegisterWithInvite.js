@@ -19,7 +19,7 @@ function RegisterWithInvite() {
 
   useEffect(() => {
     if (!inviteToken) {
-      navigate('/register');
+      navigate('/');
     }
   }, [inviteToken, navigate]);
 
