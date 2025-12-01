@@ -404,4 +404,26 @@ router.post('/users/register-with-invite', async (req, res) => {
   }
 });
 
+// Get organizations for a specific user (from UserOrganizations composite table)
+router.get('/user/:userid/organizations', async (req, res) => {
+  const { userid } = req.params;
+  if (!userid) return res.status(400).json({ status: 'error', message: 'User ID required' });
+
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      `SELECT uo.ORG_ID, o.ORG_NAME
+       FROM UserOrganizations uo
+       LEFT JOIN Organizations o ON uo.ORG_ID = o.ORG_ID
+       WHERE uo.USER_ID = ?`,
+      [userid]
+    );
+    connection.release();
+    res.json({ status: 'success', data: rows || [] });
+  } catch (err) {
+    console.error('Error fetching user organizations:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch organizations' });
+  }
+});
+
 export default router;
