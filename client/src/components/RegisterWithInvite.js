@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import Banner from './Banner';
+import '../Template.css';
 
 function RegisterWithInvite() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const inviteToken = searchParams.get('invite');
-  
+
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -16,11 +18,21 @@ function RegisterWithInvite() {
   });
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!inviteToken) {
-      navigate('/');
-    }
+    // Give React Router time to parse URL params
+    const timer = setTimeout(() => {
+      if (!inviteToken) {
+        console.log('No invite token found, redirecting to home');
+        navigate('/');
+      } else {
+        console.log('Invite token found:', inviteToken);
+        setIsLoading(false);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [inviteToken, navigate]);
 
   const handleSubmit = async (e) => {
@@ -70,11 +82,24 @@ function RegisterWithInvite() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div>
+        <Banner />
+        <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem', textAlign: 'center' }}>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem' }}>
-      <h2>Join as Driver</h2>
-      <p>Complete your registration to join the organization.</p>
-      
+    <div>
+      <Banner />
+      <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem' }}>
+        <h2>Join as Driver</h2>
+        <p>Complete your registration to join the organization.</p>
+
       {message && (
         <div className={`message ${messageType}`} style={{ marginBottom: '1rem' }}>
           {message}
@@ -126,6 +151,7 @@ function RegisterWithInvite() {
         />
         <button type="submit">Create Account</button>
       </form>
+      </div>
     </div>
   );
 }
