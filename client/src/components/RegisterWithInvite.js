@@ -50,7 +50,16 @@ function RegisterWithInvite() {
       if (data.status === 'success') {
         setMessage('Account created successfully! Welcome to Talladega Nights!');
         setMessageType('success');
-        setTimeout(() => navigate('/'), 2000);
+
+        // Auto-login the new user
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
+
+        // Redirect to driver profile page
+        setTimeout(() => navigate('/profile'), 2000);
       } else {
         setMessage(data.message || 'Registration failed');
         setMessageType('error');

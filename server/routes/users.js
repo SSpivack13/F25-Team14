@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../db.js';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { logAudit, AuditLogTypes, getIpAddress } from '../utils/auditLogger.js';
 
 const router = express.Router();
@@ -381,8 +382,22 @@ router.post('/users/register-with-invite', async (req, res) => {
       details: { username, addedVia: 'invitation' }
     });
 
+    // Generate JWT token for auto-login
+    const token = jwt.sign({ userId: nextUserId }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: '2h' });
+
+    // Get the newly created user (without password)
+    const [newUserRows] = await connection.execute(
+      'SELECT USER_ID, USERNAME, F_NAME, L_NAME, EMAIL, USER_TYPE, POINT_TOTAL FROM Users WHERE USER_ID = ?',
+      [nextUserId]
+    );
+
     connection.release();
-    res.json({ status: 'success', message: 'Account created successfully' });
+    res.json({
+      status: 'success',
+      message: 'Account created successfully',
+      user: newUserRows[0],
+      token
+    });
   } catch (err) {
     console.error('Error in register-with-invite:', err);
     res.status(500).json({ status: 'error', message: 'Registration failed' });
