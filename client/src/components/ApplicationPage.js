@@ -9,7 +9,7 @@ function ApplicationPage() {
   const [organizations, setOrganizations] = useState([]);
   const [sponsorByOrg, setSponsorByOrg] = useState({});
   const [selectedOrgId, setSelectedOrgId] = useState('');
-  const [form, setForm] = useState({ phone: '', email: '', yearsExperience: '', message: '' });
+  const [form, setForm] = useState({ phone: '', email: '' });
   const [status, setStatus] = useState({ type: '', message: '' });
   const [myNotifications, setMyNotifications] = useState([]);
   const [myDriverOrgs, setMyDriverOrgs] = useState([]);
@@ -110,9 +110,7 @@ function ApplicationPage() {
     const sponsor = sponsorByOrg[org?.ORG_ID];
     const finalForm = {
       phone: form.phone,
-      email: form.email || user?.EMAIL || '',
-      yearsExperience: form.yearsExperience,
-      message: form.message
+      email: form.email || user?.EMAIL || ''
     };
     const an = user?.USERNAME || '';
     const compact = {
@@ -121,15 +119,9 @@ function ApplicationPage() {
       oid: org?.ORG_ID,
       on: org?.ORG_NAME,
       ph: finalForm.phone,
-      em: finalForm.email,
-      exp: finalForm.yearsExperience,
-      msg: String(finalForm.message || '').slice(0, 200)
+      em: finalForm.email
     };
     let content = JSON.stringify(compact);
-    if (content.length > 220) {
-      const { msg, ...rest } = compact;
-      content = JSON.stringify(rest);
-    }
 
     try {
       const payload = { notif_type: 'driver_application', notif_content: content, recipients: { type: 'users', user_ids: [sponsor?.USER_ID || org.ORG_LEADER_ID] } };
@@ -140,7 +132,7 @@ function ApplicationPage() {
           await axios.post(`${process.env.REACT_APP_API}/notifications/send`, selfPayload, { headers: { 'Content-Type': 'application/json', ...authHeaders() } });
         } catch {}
         setStatus({ type: 'success', message: 'Application submitted to sponsor' });
-        setForm({ phone: '', email: '', yearsExperience: '', message: '' });
+        setForm({ phone: '', email: '' });
       } else {
         setStatus({ type: 'error', message: res.data?.message || 'Failed to submit application' });
       }
@@ -187,13 +179,10 @@ function ApplicationPage() {
               <input value={form.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="Phone" />
               <label>Email</label>
               <input value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder="Email" />
-              <label>Years of Experience</label>
-              <input value={form.yearsExperience} onChange={(e) => setField('yearsExperience', e.target.value)} placeholder="e.g. 5" />
-              <label>Message</label>
-              <textarea rows={5} value={form.message} onChange={(e) => setField('message', e.target.value)} placeholder="Tell us about yourself" />
+              
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="submit">Submit Application</button>
-                <button type="button" onClick={() => setForm({ phone: '', email: '', yearsExperience: '', message: '' })}>Reset</button>
+                <button type="button" onClick={() => setForm({ phone: '', email: '' })}>Reset</button>
               </div>
             </form>
           </div>
@@ -222,7 +211,7 @@ function ApplicationPage() {
                     {it.inOrg && it.status !== 'accepted' && (
                       <div style={{ color: '#007bff' }}>Note: You are already in this organization</div>
                     )}
-                    <div style={{ color: '#666' }}><strong>Submitted:</strong> {it.p.msg ? it.p.msg : ''}</div>
+                    
                   </div>
                 ))}
               </div>

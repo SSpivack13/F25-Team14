@@ -158,4 +158,53 @@ router.post('/notifications/send', async (req, res) => {
   }
 });
 
+router.put('/notifications/:notifId', async (req, res) => {
+  try {
+    const userId = req.userId;
+    const notifId = Number(req.params.notifId);
+    const { status } = req.body || {};
+    if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    if (!notifId || !['accepted', 'denied'].includes(String(status))) {
+      return res.status(400).json({ status: 'error', message: 'Invalid request' });
+    }
+
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      'SELECT NOTIF_ID, USER_ID, NOTIF_TYPE, NOTIF_CONTENT FROM Notifications WHERE NOTIF_ID = ? AND USER_ID = ?',
+      [notifId, userId]
+    );
+    if (!rows || rows.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'Notification not found' });
+    }
+
+    const row = rows[0];
+    if (row.NOTIF_TYPE !== 'driver_application') {
+      connection.release();
+      return res.status(400).json({ status: 'error', message: 'Unsupported notification type' });
+    }
+
+    let payload = {};
+    try {
+      payload = JSON.parse(row.NOTIF_CONTENT || '{}');
+      if (typeof payload === 'string') {
+        try { payload = JSON.parse(payload); } catch { payload = {}; }
+      }
+    } catch {
+      payload = {};
+    }
+
+    const updated = JSON.stringify({ ...payload, st: String(status) });
+    await connection.execute(
+      'UPDATE Notifications SET NOTIF_CONTENT = ? WHERE NOTIF_ID = ? AND USER_ID = ?',
+      [updated, notifId, userId]
+    );
+    connection.release();
+    return res.json({ status: 'success' });
+  } catch (err) {
+    console.error('Error updating notification:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to update notification' });
+  }
+});
+
 export default router;

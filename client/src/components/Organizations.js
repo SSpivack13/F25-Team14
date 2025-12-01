@@ -340,8 +340,27 @@ function Organizations() {
             headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify(notify)
           });
+          await fetch(`${process.env.REACT_APP_API}/notifications/${app.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ status: 'accepted' })
+          });
         } catch {}
         setApplications(prev => prev.map(x => x.id === app.id ? { ...x, payload: { ...x.payload, st: 'accepted' } } : x));
+        try {
+          const resAll = await fetch(`${process.env.REACT_APP_API}/notifications/my`, { headers: authHeaders() });
+          const allData = await resAll.json();
+          const rowsAll = (allData.data || []).filter(n => n.NOTIF_TYPE === 'driver_application');
+          const keyMatches = rowsAll.filter(n => {
+            const p = parseNotifPayload(n.NOTIF_CONTENT);
+            return String(p.oid) === String(app.payload.oid) && ((typeof p.auid === 'number' && p.auid === app.payload.auid) || (String(p.an || '').toLowerCase() === String(app.payload.an || '').toLowerCase()));
+          });
+          await Promise.all(keyMatches.map(n => fetch(`${process.env.REACT_APP_API}/notifications/${n.NOTIF_ID}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ status: 'accepted' })
+          })));
+        } catch {}
         fetchMyOrganization();
         fetchApplications();
         setMessage('Driver accepted and added to organization');
@@ -392,6 +411,25 @@ function Organizations() {
         setApplications(prev => prev.map(x => x.id === app.id ? { ...x, payload: { ...x.payload, st: 'denied' } } : x));
         setMessage('Application denied');
         setMessageType('success');
+        try {
+          await fetch(`${process.env.REACT_APP_API}/notifications/${app.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ status: 'denied' })
+          });
+          const resAll = await fetch(`${process.env.REACT_APP_API}/notifications/my`, { headers: authHeaders() });
+          const allData = await resAll.json();
+          const rowsAll = (allData.data || []).filter(n => n.NOTIF_TYPE === 'driver_application');
+          const keyMatches = rowsAll.filter(n => {
+            const p = parseNotifPayload(n.NOTIF_CONTENT);
+            return String(p.oid) === String(app.payload.oid) && ((typeof p.auid === 'number' && p.auid === app.payload.auid) || (String(p.an || '').toLowerCase() === String(app.payload.an || '').toLowerCase()));
+          });
+          await Promise.all(keyMatches.map(n => fetch(`${process.env.REACT_APP_API}/notifications/${n.NOTIF_ID}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ status: 'denied' })
+          })));
+        } catch {}
       } else {
         setMessage(data.message || 'Failed to deny application');
         setMessageType('error');
@@ -445,7 +483,18 @@ function Organizations() {
         const apps = rows.map(n => ({ id: n.NOTIF_ID, payload: parseNotifPayload(n.NOTIF_CONTENT) }));
         const orgId = myOrganization?.ORG_ID;
         const filtered = orgId ? apps.filter(a => (a.payload.oid === orgId)) : apps;
-        setApplications(filtered);
+        const byKey = new Map();
+        const makeKey = (p) => {
+          const aid = typeof p.auid === 'number' ? p.auid : String(p.an || '').toLowerCase();
+          return `${aid}:${p.oid}`;
+        };
+        filtered
+          .sort((a, b) => Number(b.id) - Number(a.id))
+          .forEach(a => {
+            const k = makeKey(a.payload);
+            if (!byKey.has(k)) byKey.set(k, a);
+          });
+        setApplications(Array.from(byKey.values()));
       }
     } catch (err) {
       console.error('Failed to fetch applications:', err);
@@ -834,8 +883,7 @@ function Organizations() {
                             <div><strong>Organization:</strong> {a.payload.on} (ID {a.payload.oid})</div>
                             <div><strong>Phone:</strong> {a.payload.ph}</div>
                             <div><strong>Email:</strong> {a.payload.em}</div>
-                            <div><strong>Experience:</strong> {a.payload.exp}</div>
-                            <div><strong>Message:</strong> {a.payload.msg}</div>
+                            
                             {a.payload.st ? (
                               <div style={{ marginTop: '6px', fontWeight: 600, color: a.payload.st === 'accepted' ? '#28a745' : '#dc3545' }}>
                                 {a.payload.st === 'accepted' ? 'Accepted' : 'Denied'}
