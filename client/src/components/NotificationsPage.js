@@ -3,6 +3,7 @@ import axios from 'axios';
 import { authHeaders } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import Banner from './Banner';
+import '../Template.css';
 
 function NotificationsPage() {
   const navigate = useNavigate();
@@ -127,75 +128,113 @@ function NotificationsPage() {
   return (
     <div>
       <Banner />
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px'}} >
-        <h2>Send Notification</h2>
-        {/* My Applications moved to Application page for drivers */}
-        {/* Applications moved to My Organization page for sponsors */}
-        {status && (
-          <div className={`message ${status.type}`} style={{ marginBottom: '1rem' }}>{status.message}</div>
-        )}
+      <div className="template-content">
+        <div className="template-card">
+          <h1>Send Notification</h1>
 
-        <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '720px' }}>
-          <label>Type</label>
-          <input value={form.notif_type} onChange={(e) => handleChange('notif_type', e.target.value)} placeholder="Notification type (free text)" />
+          {status && (
+            <div className={`message ${status.type}`} style={{ marginBottom: '1rem' }}>
+              {status.message}
+            </div>
+          )}
 
-          <label>Content</label>
-          <textarea value={form.notif_content} onChange={(e) => handleChange('notif_content', e.target.value)} rows={5} />
-
-          <label>Recipients</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="form-group">
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Type</label>
               <input
-                type="radio"
-                name="recipientMode"
-                checked={recipients.mode === 'single'}
-                onChange={() => setRecipients({ mode: 'single', value: '' })}
+                value={form.notif_type}
+                onChange={(e) => handleChange('notif_type', e.target.value)}
+                placeholder="Notification type (free text)"
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
               />
-              Single User
-            </label>
-            {recipients.mode === 'single' && (
-              user?.USER_TYPE === 'sponsor' ? (
-                <select
-                  value={recipients.value}
-                  onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
-                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginLeft: '24px' }}
-                >
-                  <option value="">-- Select a user --</option>
-                  {orgUsers.map(u => (
-                    <option key={u.USER_ID} value={u.USER_ID}>
-                      {u.F_NAME} {u.L_NAME} ({u.USERNAME}) - {u.EMAIL}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  placeholder="USER_ID"
-                  value={recipients.value}
-                  onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
-                  style={{ marginLeft: '24px' }}
-                />
-              )
-            )}
+            </div>
 
-            {user?.USER_TYPE === 'sponsor' && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="radio"
-                  name="recipientMode"
-                  checked={recipients.mode === 'all'}
-                  onChange={() => setRecipients({ mode: 'all', value: '' })}
-                />
-                All Users in My Organization
-              </label>
-            )}
-          </div>
+            <div className="form-group">
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Content</label>
+              <textarea
+                value={form.notif_content}
+                onChange={(e) => handleChange('notif_content', e.target.value)}
+                rows={5}
+                placeholder="Enter notification content"
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+              />
+            </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="submit">Send Notification</button>
-            <button type="button" onClick={() => { setForm({ notif_type: '', notif_content: '' }); setRecipients({ mode: 'single', value: '' }); }}>Reset</button>
-            <button type="button" onClick={() => navigate('/')}>Cancel</button>
-          </div>
-        </form>
+            <div className="form-group">
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>Recipients</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="recipientMode"
+                    checked={recipients.mode === 'single'}
+                    onChange={() => setRecipients({ mode: 'single', value: '' })}
+                  />
+                  <span>Single User</span>
+                </label>
+
+                {recipients.mode === 'single' && (
+                  user?.USER_TYPE === 'sponsor' ? (
+                    <select
+                      value={recipients.value}
+                      onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
+                      style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginLeft: '24px', width: 'calc(100% - 24px)' }}
+                    >
+                      <option value="">-- Select a user --</option>
+                      {orgUsers.map(u => (
+                        <option key={u.USER_ID} value={u.USER_ID}>
+                          {u.F_NAME} {u.L_NAME} ({u.USERNAME}) - {u.EMAIL}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      placeholder="USER_ID"
+                      value={recipients.value}
+                      onChange={(e) => setRecipients({ ...recipients, value: e.target.value })}
+                      style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginLeft: '24px', width: 'calc(100% - 24px)' }}
+                    />
+                  )
+                )}
+
+                {user?.USER_TYPE === 'sponsor' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="recipientMode"
+                      checked={recipients.mode === 'all'}
+                      onChange={() => setRecipients({ mode: 'all', value: '' })}
+                    />
+                    <span>All Users in My Organization</span>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <div className="form-actions" style={{ display: 'flex', gap: '8px', marginTop: '1rem' }}>
+              <button
+                type="submit"
+                style={{ padding: '10px 20px', backgroundColor: '#ff9800', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Send Notification
+              </button>
+              <button
+                type="button"
+                onClick={() => { setForm({ notif_type: '', notif_content: '' }); setRecipients({ mode: 'single', value: '' }); }}
+                style={{ padding: '10px 20px', backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                style={{ padding: '10px 20px', backgroundColor: '#f0f0f0', color: '#333', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
