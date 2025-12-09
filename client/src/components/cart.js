@@ -6,8 +6,10 @@ import axios from "axios";
 import { authHeaders } from "../utils/auth";
 
 function Cart() {
-  const [cart, setCart] = useState({ products: [] });
+  const [cart, setCart] = useState({ products: [], orgId: null });
   const [productsData, setProductsData] = useState({});
+  const [userPoints, setUserPoints] = useState(0);
+  const [orgName, setOrgName] = useState('');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
@@ -29,6 +31,27 @@ function Cart() {
       data[id] = res.data;
     }));
     setProductsData(data);
+
+    // Fetch current points for the organization if cart has an orgId
+    if (localCart.orgId && user?.USER_TYPE === 'driver') {
+      try {
+        const orgsRes = await axios.get(
+          `${process.env.REACT_APP_API}/driver/${user.USER_ID}/organizations`,
+          { headers: authHeaders() }
+        );
+        if (orgsRes.data.status === 'success') {
+          const org = orgsRes.data.data.find(o => o.ORG_ID === localCart.orgId);
+          if (org) {
+            setUserPoints(org.POINT_TOTAL || 0);
+            setOrgName(org.ORG_NAME || '');
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching user points:", err);
+      }
+    } else if (user?.USER_TYPE === 'admin') {
+      setUserPoints(999999);
+    }
   };
 
   const handleRemove = (productId) => {
@@ -42,27 +65,60 @@ function Cart() {
   }, 0);
 
   const checkout = async () => {
+    // Admin and sponsor can checkout without points validation
     if (user.USER_TYPE === 'admin' || user.USER_TYPE === 'sponsor') {
-      
-      setCart({ products: [] });
+      alert("Checkout successful!");
+      setCart({ products: [], orgId: null });
       localStorage.removeItem(`user_cart_${user.USER_ID}`);
-    }else if (totalPoints > (user.POINT_TOTAL || 0)) {
-      alert("Insufficient Point Balance.");
-    } else {
-    const newPoints = (user.POINT_TOTAL || 0) - totalPoints;
-    user.POINT_TOTAL = newPoints;
-    localStorage.setItem("user", JSON.stringify(user));
+      return;
+    }
+
+    // For drivers, validate against organization-specific points
+    if (!cart.orgId) {
+      alert("Cart has no organization associated. Please add items from the catalog.");
+      return;
+    }
+
+    if (totalPoints > userPoints) {
+      alert(`Insufficient Point Balance. You have ${userPoints} points but need ${Math.round(totalPoints)} points.`);
+      return;
+    }
+
+    const pointsToDeduct = Math.round(totalPoints);
 
     try {
-      await axios.put(`${process.env.REACT_APP_API}/updateUser/${user.USER_ID}`, { POINT_TOTAL: newPoints }, { headers: authHeaders() });
-      alert(`Checkout successful! Remaining points: ${newPoints}`);
-      setCart({ products: [] });
+      // Prepare purchase details
+      const purchaseDetails = {
+        items: cart.products.map(p => ({
+          productId: p.productId,
+          quantity: p.quantity,
+          title: productsData[p.productId]?.title,
+          price: productsData[p.productId]?.price
+        })),
+        totalPoints: pointsToDeduct
+      };
+
+      // Deduct points using driver purchase endpoint
+      const response = await axios.put(
+        `${process.env.REACT_APP_API}/organizations/driver-purchase`,
+        {
+          userId: user.USER_ID,
+          pointsToDeduct: pointsToDeduct,
+          orgId: cart.orgId,
+          purchaseDetails: purchaseDetails
+        },
+        { headers: authHeaders() }
+      );
+
+      const newPoints = response.data.newPoints;
+      alert(`Checkout successful! Remaining points in ${orgName}: ${newPoints}`);
+      setCart({ products: [], orgId: null });
       localStorage.removeItem(`user_cart_${user.USER_ID}`);
+      setUserPoints(newPoints);
     } catch (err) {
       console.error(err);
-      alert("Checkout failed");
+      alert("Checkout failed: " + (err.response?.data?.message || err.message));
     }
-  }
   };
 
   const totalItems = cart.products.reduce((sum, p) => sum + (p.quantity || 0), 0);
@@ -76,6 +132,12 @@ function Cart() {
           <div>Your cart is empty.</div>
         ) : (
           <div>
+            {cart.orgId && orgName && user?.USER_TYPE === 'driver' && (
+              <div style={{ marginBottom: 12, padding: 12, backgroundColor: '#f0f0f0', borderRadius: 4 }}>
+                <div><strong>Organization:</strong> {orgName}</div>
+                <div><strong>Your Points:</strong> {userPoints.toLocaleString()}</div>
+              </div>
+            )}
             <div style={{ marginBottom: 12 }}>
               <strong>{totalItems}</strong> item(s) — <strong>{Math.round(totalPoints).toLocaleString()}</strong> points
             </div>

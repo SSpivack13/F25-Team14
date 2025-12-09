@@ -33,10 +33,8 @@ function Catalogue() {
 
       // Fetch user's organizations based on user type
       if (isLoggedIn && user?.USER_ID) {
-        setUserPoints(user.POINT_TOTAL || 0);
-        
         if (user.USER_TYPE === 'driver') {
-          // Drivers: fetch their assigned organizations
+          // Drivers: fetch their assigned organizations with points
           try {
             const orgsRes = await axios.get(
               `${process.env.REACT_APP_API}/driver/${user.USER_ID}/organizations`,
@@ -46,6 +44,8 @@ function Catalogue() {
               setUserOrganizations(orgsRes.data.data);
               if (orgsRes.data.data.length > 0) {
                 setSelectedOrgId(orgsRes.data.data[0].ORG_ID);
+                // Set initial points from first organization
+                setUserPoints(orgsRes.data.data[0].POINT_TOTAL || 0);
               }
             }
           } catch (err) {
@@ -94,7 +94,7 @@ function Catalogue() {
     initializeCatalogue();
   }, [isLoggedIn, user?.USER_ID]);
 
-  // Update displayed products when selected organization changes
+  // Update displayed products and points when selected organization changes
   useEffect(() => {
     if (selectedOrgId && userOrganizations.length > 0) {
       const selectedOrg = userOrganizations.find(org => org.ORG_ID === selectedOrgId);
@@ -111,16 +111,25 @@ function Catalogue() {
         // Filter all products to only show those in the organization's catalog
         const catalogProducts = allProducts.filter(p => productIds.includes(p.id));
         setDisplayedProducts(catalogProducts);
+
+        // Update points for drivers based on selected organization
+        if (user?.USER_TYPE === 'driver' && selectedOrg.POINT_TOTAL !== undefined) {
+          setUserPoints(selectedOrg.POINT_TOTAL || 0);
+        }
       }
     }
-  }, [selectedOrgId, userOrganizations, allProducts]);
+  }, [selectedOrgId, userOrganizations, allProducts, user?.USER_TYPE]);
 
   const handleAddToCart = (product) => {
     if (!isLoggedIn || !user?.USER_ID) {
       navigate("/login");
       return;
     }
-    const updated = addToCart(user.USER_ID, product.id, 1);
+    if (!selectedOrgId) {
+      alert("Please select an organization first");
+      return;
+    }
+    const updated = addToCart(user.USER_ID, product.id, 1, selectedOrgId);
     setCart(updated);
   };
 

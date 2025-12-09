@@ -203,9 +203,9 @@ router.get('/driver/:userId/organizations', async (req, res) => {
   try {
     const connection = await pool.getConnection();
 
-    // Get all organizations the driver belongs to
+    // Get all organizations the driver belongs to with their points
     const [driverOrgRows] = await connection.execute(`
-      SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID, o.product1, o.product2, o.product3, o.product4, o.product5
+      SELECT o.ORG_ID, o.ORG_NAME, o.ORG_LEADER_ID, o.product1, o.product2, o.product3, o.product4, o.product5, COALESCE(uo.POINT_TOTAL, 0) as POINT_TOTAL
       FROM Organizations o
       INNER JOIN UserOrganizations uo ON o.ORG_ID = uo.ORG_ID
       WHERE uo.USER_ID = ?
@@ -926,6 +926,84 @@ router.post('/organizations/bulk-upload', async (req, res) => {
   } catch (err) {
     console.error('Error in bulk upload:', err);
     res.status(500).json({ status: 'error', message: 'Failed to process file: ' + err.message });
+  }
+});
+
+// Driver purchase - deduct points from their own account
+router.put('/organizations/driver-purchase', async (req, res) => {
+  const { userId, pointsToDeduct, orgId, purchaseDetails } = req.body;
+
+  if (!userId || !pointsToDeduct || !orgId) {
+    return res.status(400).json({ status: 'error', message: 'userId, pointsToDeduct, and orgId are required' });
+  }
+
+  if (pointsToDeduct <= 0) {
+    return res.status(400).json({ status: 'error', message: 'pointsToDeduct must be positive' });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // Get current points
+    const [currentPoints] = await connection.execute(
+      'SELECT POINT_TOTAL FROM UserOrganizations WHERE USER_ID = ? AND ORG_ID = ?',
+      [userId, orgId]
+    );
+
+    if (currentPoints.length === 0) {
+      connection.release();
+      return res.status(404).json({ status: 'error', message: 'User not found in organization' });
+    }
+
+    const oldPoints = currentPoints[0]?.POINT_TOTAL || 0;
+
+    // Check if user has enough points
+    if (oldPoints < pointsToDeduct) {
+      connection.release();
+      return res.status(400).json({
+        status: 'error',
+        message: `Insufficient points. You have ${oldPoints} but need ${pointsToDeduct}`
+      });
+    }
+
+    // Deduct points
+    const [result] = await connection.execute(
+      'UPDATE UserOrganizations SET POINT_TOTAL = POINT_TOTAL - ? WHERE USER_ID = ? AND ORG_ID = ?',
+      [pointsToDeduct, userId, orgId]
+    );
+
+    if (result.affectedRows > 0) {
+      const newPoints = oldPoints - pointsToDeduct;
+
+      // Log the purchase
+      await logAudit(connection, {
+        logType: AuditLogTypes.POINTS_REDEEMED,
+        performedBy: userId,
+        targetUser: userId,
+        orgId: orgId,
+        oldValue: oldPoints.toString(),
+        newValue: newPoints.toString(),
+        ipAddress: getIpAddress(req),
+        details: {
+          pointsDeducted: pointsToDeduct,
+          reason: 'Catalog purchase',
+          purchaseDetails: purchaseDetails || {}
+        }
+      });
+
+      connection.release();
+      res.json({
+        status: 'success',
+        message: 'Purchase successful',
+        newPoints: newPoints
+      });
+    } else {
+      connection.release();
+      res.status(500).json({ status: 'error', message: 'Failed to update points' });
+    }
+  } catch (err) {
+    console.error('Error processing purchase:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to process purchase' });
   }
 });
 
